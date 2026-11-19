@@ -5,7 +5,7 @@ import { DocumentPin, PinnedBridgeClient } from './bridge/PinnedBridgeClient.js'
 import { loadDraftingGuide, registerDraftingGuide } from './guide/draftingGuide.js'
 import { registerAllTools } from './tools/index.js'
 
-const SERVER_NAME = 'autocad-mcp'
+const SERVER_NAME = 'arcdio'
 const SERVER_VERSION = '0.2.0'
 
 // Read once per process; createServer runs per MCP session.
