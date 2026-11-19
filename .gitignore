@@ -1,0 +1,26 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Windows installers and signed release artifacts
+artifacts/
+*.msi
+*.msix
+*.exe
+*.pdb
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

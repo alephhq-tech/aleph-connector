@@ -1,0 +1,34 @@
+{
+  "name": "@arcdio/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "stdio-proxy": "bun run src/stdio-proxy.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "bun run src/smoke.ts",
+    "e2e": "bun run scripts/e2e-autocad.ts"
+  },
+  "dependencies": {
+    "@arcdio/observability": "workspace:*",
+    "@arcdio/config": "workspace:*",
+    "@arcdio/data": "workspace:*",
+    "@arcdio/engineering": "workspace:*",
+    "@arcdio/identity": "workspace:*",
+    "@arcdio/cad-types": "workspace:*",
+    "@arcdio/device-contracts": "workspace:*",
+    "@arcdio/device-gateway": "workspace:*",
+    "@arcdio/cad-tools": "workspace:*",
+    "@arcdio/cad-protocol": "workspace:*",
+    "@arcdio/cad-state": "workspace:*",
+    "@arcdio/operation-protocol": "workspace:*",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "typescript": "^5.6.0"
+  }
+}

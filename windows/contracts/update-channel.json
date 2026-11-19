@@ -1,0 +1,25 @@
+{
+  "$comment": [
+    "The standalone CAD emergency update channel, as ONE data file consumed by every layer that",
+    "has to agree on it: the release workflow (.github/workflows/release-desktop.yml) publishes the",
+    "signed ZIP + manifest under `<bucket>/<prefix>/`, the packager (scripts/package-client.ps1)",
+    "interpolates the resulting manifest URL and public-key location into the generated",
+    "install.ps1/uninstall.ps1 and ships updater/prodkeys/public.pem inside the client package,",
+    "scripts/Test-PackagedBundle.ps1 proves the shipped package carries that key and that the",
+    "generated scripts name the contract's URL, and bridge.Tests/UpdateChannelContractTests.cs pins",
+    "the workflow, the packager and the release host together so none can drift silently. The channel",
+    "is served from the same private MinIO `releases` bucket and the same `updates.<domain>` release",
+    "gateway as Desktop releases (aleph-cloud/infra/release-gateway/Caddyfile already allow-lists",
+    "/autocad-bridge/*); Cloudflare R2 is no longer used.",
+    "The signature public key is separate from Desktop's own Tauri updater key: a Desktop installer",
+    "signature says the installer is genuine, this key says a standalone CAD ZIP is a genuine CadAI",
+    "release. Private half lives only in the UPDATE_SIGNING_PRIVATE_KEY Actions secret."
+  ],
+  "bucket": "releases",
+  "prefix": "autocad-bridge",
+  "releaseHost": "https://updates.alephhq.tech",
+  "manifestName": "manifest.json",
+  "publicKeyRepoPath": "updater/prodkeys/public.pem",
+  "publicKeyPackageDir": "keys",
+  "publicKeyInstallSubdir": "CadAI\\keys"
+}

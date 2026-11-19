@@ -1,0 +1,6 @@
+{
+  "type": "capability.result",
+  "requestId": "req_01",
+  "status": "success",
+  "result": { "entity": { "handle": "2A9", "kind": "line", "layer": "WALL" } }
+}

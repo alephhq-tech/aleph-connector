@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/cad-types" },
+    { "path": "packages/device-protocol" },
+    { "path": "packages/cad-protocol" },
+    { "path": "packages/cad-core" }
+  ]
+}

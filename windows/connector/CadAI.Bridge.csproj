@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Bridge is a standalone Windows process with no AutoCAD dependency at all — it never
+    loads AcMgd/AcDbMgd/AcCoreMgd, only talks WSS to the Device Gateway and a local named pipe
+    to whatever AutoCAD plugin instances happen to be running. That means, unlike the AutoCAD
+    plugin project, this project builds on any machine with the .NET 8 SDK.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>CadAI.Bridge</AssemblyName>
+    <RootNamespace>CadAi.Bridge</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Local IPC transport to the AutoCAD plugin (StreamJsonRpc.HeaderDelimitedMessageHandler),
+         same package/version as plugin so both ends speak an identical wire format. -->
+    <PackageReference Include="StreamJsonRpc" Version="2.21.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CadAi.Updater.IUpdateCoordinator — the Bridge orchestrates the update state machine,
+         the Updater project implements download/verify/stage/activate. -->
+    <ProjectReference Include="../updater/CadAI.Updater.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GENERATED CONTRACT — mirrors contracts/protocol/schemas/device-protocol.schema.json.
+         Referenced in place, never copied: server, device-gateway, and this
+         project must all deserialize byte-identical wire messages. -->
+    <Compile Include="../generated/csharp/DeviceProtocol.cs" />
+  </ItemGroup>
+
+</Project>

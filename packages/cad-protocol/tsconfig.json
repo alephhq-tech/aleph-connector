@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "baseUrl": "../..",
+    "paths": {
+      "@arcdio/cad-types": ["packages/cad-types/src/index.ts"],
+      "@arcdio/device-protocol": ["packages/device-protocol/device-protocol.ts"],
+      "@arcdio/cad-protocol": ["packages/cad-protocol/index.ts"]
+    },
+    "outDir": "dist",
+    "rootDir": ".",
+    "tsBuildInfoFile": "../../node_modules/.cache/cad-protocol.tsbuildinfo"
+  },
+  "references": [
+    { "path": "../cad-types" },
+    { "path": "../device-protocol" }
+  ],
+  "include": ["index.ts", "device/**/*.ts", "local-ipc/**/*.ts", "scripts/**/*.ts"]
+}

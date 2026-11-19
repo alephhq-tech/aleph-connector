@@ -1,0 +1,24 @@
+{
+  "name": "@arcdio/device-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/lib.ts",
+  "types": "src/lib.ts",
+  "scripts": {
+    "dev": "bun run src/bin.ts",
+    "start": "bun run src/bin.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "bun run src/smoke.ts"
+  },
+  "dependencies": {
+    "@arcdio/observability": "workspace:*",
+    "@arcdio/config": "workspace:*",
+    "@arcdio/identity": "workspace:*",
+    "@arcdio/device-contracts": "workspace:*",
+    "@arcdio/cad-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Small, rarely-changing loader shim: AutoCAD registers only this assembly
+    (via CadAI.bundle/PackageContents.xml); it reflectively loads the actual
+    versioned plugin named in ../current.json. On net8.0-windows/net10.0-windows
+    it loads into a collectible AssemblyLoadContext (PluginLoadContext.cs) so it
+    can be hot-reloaded via the CADAIRELOAD command without restarting AutoCAD;
+    on net48 (AssemblyLoadContext doesn't exist in .NET Framework) it's a plain
+    Assembly.LoadFrom and CADAIRELOAD reports hot-reload as unsupported instead
+    — see BootstrapExtensionApplication.cs and ../README.md.
+
+    Three target frameworks, one per AutoCAD managed-runtime generation this
+    Bootstrap can be registered against — see ../CadAI.AutoCAD.csproj's header
+    comment for the full AutoCAD-series mapping and ../../SETUP.md for how to
+    build net48. net8.0-windows/net10.0-windows resolve AutoCAD's managed API
+    from the official Autodesk NuGet packages below; net48 has no NuGet
+    equivalent and needs a local AutoCAD 2021-2024 install or ObjectARX SDK
+    instead (see the Reference items below).
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+    <AssemblyName>CadAI.AutoCAD.Bootstrap</AssemblyName>
+    <RootNamespace>CadAI.AutoCAD.Bootstrap</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <IsPackable>false</IsPackable>
+    <AutoCadNetFxRefDir Condition="'$(AutoCadNetFxRefDir)' == ''"></AutoCadNetFxRefDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <!-- 25.1.0, not 25.1.1 — see CadAI.AutoCAD.csproj's comment: Autodesk retargeted the
+         25.1.x/25.0.x patch lines to net10.0 starting with 25.1.1/25.0.2. -->
+    <PackageReference Include="AutoCAD.NET.Model" Version="25.1.0" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="25.1.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <PackageReference Include="AutoCAD.NET.Model" Version="26.0.0" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="26.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="AcMgd">
+      <HintPath>$(AutoCadNetFxRefDir)\AcMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AutoCadNetFxRefDir)\AcDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AutoCadNetFxRefDir)\AcCoreMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+  </ItemGroup>
+
+  <Target Name="RequireAutoCadNetFxRefDir" BeforeTargets="CoreCompile" Condition="'$(TargetFramework)' == 'net48' And '$(AutoCadNetFxRefDir)' == ''">
+    <Error Text="Building net48 requires -p:AutoCadNetFxRefDir=&quot;&lt;path to an AutoCAD 2021-2024 install or extracted ObjectARX SDK&gt;&quot;. See SETUP.md, 'Building the net48 (AutoCAD 2021-2024) target'." />
+  </Target>
+
+</Project>

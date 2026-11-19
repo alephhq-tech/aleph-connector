@@ -1,0 +1,6 @@
+{
+  "type": "hello.ack",
+  "status": "compatible",
+  "protocol": 1,
+  "sessionId": "sess_abc123"
+}

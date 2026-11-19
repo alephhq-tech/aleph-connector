@@ -1,0 +1,133 @@
+{
+  "$comment": [
+    "The AutoCAD plugin-bundle layout rule, as ONE data file consumed by every layer that has to",
+    "judge a bundle: Rust (`aleph-desktop/crates/aleph-host/src/autocad_layout.rs`, embedded at",
+    "compile time) decides what Desktop calls an install; C# (`bridge/BundleRules.cs`, read from the",
+    "repo at runtime) decides what the Bridge will repair from. The versioned plugin's own",
+    "generation (plugin/Bootstrap's per-TFM `RuntimeFolderName`) and the release packager",
+    "(installer/autocad-bundle/build-bundle.ps1, scripts/package-client.ps1) are pinned to this same",
+    "file by tests, so none of the five can drift from the others silently (aleph-platform#332).",
+    "The `scenarios` table is the drift test itself: both languages materialize the same layouts and",
+    "must return the same `defect` string."
+  ],
+  "manifest": "PackageContents.xml",
+  "currentJson": "current.json",
+  "bootstrapDll": "CadAI.AutoCAD.Bootstrap.dll",
+  "pluginDll": "CadAI.AutoCAD.dll",
+  "bootstrapDir": "Bootstrap",
+  "versionsDir": "Versions",
+  "generations": [
+    { "folder": "net48", "seriesMin": "R24.0", "seriesMax": "R24.3" },
+    { "folder": "net8.0-windows", "seriesMin": "R25.0", "seriesMax": "R25.1" },
+    { "folder": "net10.0-windows", "seriesMin": "R26.0", "seriesMax": "R26.9" }
+  ],
+  "scenarios": [
+    {
+      "name": "complete bundle",
+      "dirs": ["Bootstrap/net8.0-windows", "Versions/9.9.9/net8.0-windows"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll",
+        "Versions/9.9.9/net8.0-windows/CadAI.AutoCAD.dll"
+      ],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": null
+    },
+    {
+      "name": "manifest only",
+      "dirs": [],
+      "files": ["PackageContents.xml"],
+      "defect": "current.json is missing"
+    },
+    {
+      "name": "no manifest",
+      "dirs": [],
+      "files": [],
+      "defect": "PackageContents.xml is missing"
+    },
+    {
+      "name": "no bootstrap directory",
+      "dirs": ["Versions/9.9.9/net8.0-windows"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Versions/9.9.9/net8.0-windows/CadAI.AutoCAD.dll"
+      ],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": "Bootstrap directory is missing"
+    },
+    {
+      "name": "bootstrap directory with no assembly",
+      "dirs": ["Bootstrap/net8.0-windows"],
+      "files": ["PackageContents.xml", "current.json"],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": "no Bootstrap generation contains CadAI.AutoCAD.Bootstrap.dll"
+    },
+    {
+      "name": "current.json is not JSON",
+      "dirs": ["Bootstrap/net8.0-windows", "Versions/9.9.9/net8.0-windows"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll",
+        "Versions/9.9.9/net8.0-windows/CadAI.AutoCAD.dll"
+      ],
+      "currentJson": "{ not json",
+      "defect": "current.json is not valid JSON"
+    },
+    {
+      "name": "current.json declares no version",
+      "dirs": ["Bootstrap/net8.0-windows", "Versions/9.9.9/net8.0-windows"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll",
+        "Versions/9.9.9/net8.0-windows/CadAI.AutoCAD.dll"
+      ],
+      "currentJson": "{}",
+      "defect": "current.json declares no \"current\" version"
+    },
+    {
+      "name": "current.json points at a missing version folder",
+      "dirs": ["Bootstrap/net8.0-windows"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll"
+      ],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": "current.json points at Versions/9.9.9, which does not exist"
+    },
+    {
+      "name": "version folder exists but no plugin assembly",
+      "dirs": ["Bootstrap/net8.0-windows", "Versions/9.9.9/net8.0-windows", "Versions/9.9.9/net48"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll"
+      ],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": "Versions/9.9.9 contains no CadAI.AutoCAD.dll for any runtime generation"
+    },
+    {
+      "name": "version folder holds only another version's layout",
+      "dirs": ["Bootstrap/net8.0-windows", "Versions/9.9.9/net8.0-windows"],
+      "files": [
+        "PackageContents.xml",
+        "current.json",
+        "Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll",
+        "Versions/9.9.9/CadAI.AutoCAD.dll"
+      ],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": "Versions/9.9.9 contains no CadAI.AutoCAD.dll for any runtime generation"
+    },
+    {
+      "name": "flat pre-multi-generation layout still fails",
+      "dirs": ["Bootstrap"],
+      "files": ["PackageContents.xml", "current.json", "Bootstrap/CadAI.AutoCAD.Bootstrap.dll"],
+      "currentJson": "{ \"current\": \"9.9.9\" }",
+      "defect": "no Bootstrap generation contains CadAI.AutoCAD.Bootstrap.dll"
+    }
+  ]
+}

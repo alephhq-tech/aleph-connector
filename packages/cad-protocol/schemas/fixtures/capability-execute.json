@@ -1,0 +1,16 @@
+{
+  "type": "capability.execute",
+  "requestId": "req_01",
+  "target": { "capability": "autocad", "instanceId": "acad_18244" },
+  "operation": {
+    "type": "entity.create",
+    "arguments": {
+      "kind": "line",
+      "start": { "x": 0, "y": 0, "z": 0 },
+      "end": { "x": 5000, "y": 0, "z": 0 },
+      "layer": "WALL"
+    }
+  },
+  "timeoutMs": 15000,
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+}

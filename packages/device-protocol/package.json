@@ -1,0 +1,8 @@
+{
+  "name": "@arcdio/device-protocol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./device-protocol.ts",
+  "types": "./device-protocol.ts"
+}

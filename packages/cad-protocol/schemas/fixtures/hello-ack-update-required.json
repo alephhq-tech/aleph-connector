@@ -1,0 +1,5 @@
+{
+  "type": "hello.ack",
+  "status": "update_required",
+  "minimumBridgeVersion": "0.4.0"
+}

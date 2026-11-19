@@ -1,0 +1,19 @@
+{
+  "name": "@arcdio/cad-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "validate": "bun run scripts/validate-contracts.ts"
+  },
+  "dependencies": {
+    "@arcdio/cad-types": "workspace:*",
+    "@arcdio/device-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

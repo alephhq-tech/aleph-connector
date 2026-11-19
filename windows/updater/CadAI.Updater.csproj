@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure .NET 8 class library — no AutoCAD dependency, no third-party NuGet
+    package. Consumed by apps/bridge as a ProjectReference (Bridge decides
+    when/whether to check for and apply updates; this library only knows how
+    to check, verify, download, and stage them).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CadAi.Updater</RootNamespace>
+    <AssemblyName>CadAI.Updater</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      apps/updater/Cli is a nested project directory. Without this exclusion,
+      the SDK's default `**/*.cs` glob for THIS project also sweeps up Cli's
+      own source (Cli/Program.cs) and, once Cli has been built at least once,
+      its generated obj/Debug/net8.0/*.cs files too (Cli/obj/** only matches
+      the default `obj/**` exclude at this project's own root, not nested
+      inside Cli/) — both projects target net8.0, so their generated
+      TargetFrameworkAttribute files collide (CS0579 Duplicate attribute) the
+      next time this project rebuilds after Cli has generated its own obj
+      output. Same pattern already used in
+      apps/autocad-plugin/CadAI.AutoCAD.csproj for its nested Bootstrap/.
+    -->
+    <Compile Remove="Cli\**" />
+    <EmbeddedResource Remove="Cli\**" />
+    <None Remove="Cli\**" />
+  </ItemGroup>
+
+</Project>

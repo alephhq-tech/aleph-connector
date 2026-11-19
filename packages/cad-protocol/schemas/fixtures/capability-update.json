@@ -1,0 +1,13 @@
+{
+  "type": "capability.update",
+  "capability": "autocad",
+  "instance": {
+    "instanceId": "acad_18244",
+    "processId": 18244,
+    "status": "offline",
+    "autocadVersion": "2024",
+    "pluginVersion": "0.1.0",
+    "protocol": 1,
+    "activeDocument": null
+  }
+}

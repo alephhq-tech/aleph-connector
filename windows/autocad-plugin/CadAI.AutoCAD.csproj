@@ -1,0 +1,131 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The versioned plugin: RpcHandlers, Dto, Util, PipeServer, MainThreadDispatcher,
+    transaction logic. Loaded by CadAI.AutoCAD.Bootstrap into a collectible
+    AssemblyLoadContext on net8.0-windows/net10.0-windows (see
+    Bootstrap/PluginLoadContext.cs), or a plain Assembly.LoadFrom on net48 (no
+    hot-reload there — see BootstrapExtensionApplication.cs), per
+    Versions/{version}/{TargetFramework}/current.json — never registered with
+    AutoCAD as its own ExtensionApplication. See README.md, "Bootstrap vs
+    versioned plugin".
+
+    Three target frameworks, one per AutoCAD managed-runtime generation (see
+    Autodesk's "About Managed .NET Compatibility" table and README.md's
+    "Supported AutoCAD versions"):
+      net48             AutoCAD 2021-2024 (series R24.0-R24.3, .NET Framework 4.8)
+      net8.0-windows    AutoCAD 2025-2026 (series R25.0-R25.1, .NET 8)
+      net10.0-windows   AutoCAD 2027+     (series R26.0+,     .NET 10)
+
+    net8.0-windows/net10.0-windows resolve AutoCAD's managed API from the
+    official Autodesk NuGet packages below — no local AutoCAD install or
+    hardcoded path needed to compile those two. net48 has no NuGet equivalent
+    (Autodesk only started publishing these packages from AutoCAD 2025
+    onward) and instead needs AcMgd.dll/AcDbMgd.dll/AcCoreMgd.dll referenced
+    from a local AutoCAD 2021-2024 install or the ObjectARX SDK — see
+    SETUP.md, "Building the net48 (AutoCAD 2021-2024) target".
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+    <AssemblyName>CadAI.AutoCAD</AssemblyName>
+    <RootNamespace>CadAI.AutoCAD</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <IsPackable>false</IsPackable>
+    <!-- Point this at a local AutoCAD 2021-2024 install (or extracted ObjectARX SDK) to
+         build the net48 target, e.g. "C:\Program Files\Autodesk\AutoCAD 2021". Not
+         redistributable, so not committed/fetched by this repo — see SETUP.md. -->
+    <AutoCadNetFxRefDir Condition="'$(AutoCadNetFxRefDir)' == ''"></AutoCadNetFxRefDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Bootstrap\**" />
+    <EmbeddedResource Remove="Bootstrap\**" />
+    <None Remove="Bootstrap\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- StreamJsonRpc and Newtonsoft.Json both multi-target net472+ / netstandard2.0+, so one
+         reference each covers all three TargetFrameworks here. -->
+    <PackageReference Include="StreamJsonRpc" Version="2.21.*" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Only for IPluginEntryPoint. Private=false: Bootstrap.dll is already loaded
+      into AutoCAD's process (AutoCAD loaded it directly) by the time this
+      assembly is loaded, so it must not be copied into Versions/{version}/ too
+      — the CLR resolves the reference to the already-loaded instance by name.
+    -->
+    <ProjectReference Include="Bootstrap/CadAI.AutoCAD.Bootstrap.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <!-- Pinned to 25.1.0, NOT 25.1.1: verified by downloading both .nupkgs — 25.1.0's lib/
+         folder is net8.0, but Autodesk silently retargeted the 25.1.x patch line to net10.0
+         as of 25.1.1 (published 2026-08-12; same for 25.0.x: 25.0.0 is net8.0, 25.0.2 is
+         net10.0). Autodesk's own "About Managed .NET Compatibility" table still lists
+         series R25.1 as ".NET 8" and doesn't document this — if an installed AutoCAD
+         2025/2026 has received whatever update ships that runtime change, it needs the
+         net10.0-windows build instead. Verify against the actual AcDbMgd.dll this
+         generation's AutoCAD loads before relying on this pin for a specific install. -->
+    <PackageReference Include="AutoCAD.NET.Model" Version="25.1.0" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="25.1.0" />
+    <PackageReference Include="AutoCAD.NET" Version="25.1.0" />
+    <!--
+      Compile-time only (ExcludeAssets=runtime): the Bitmap/ImageFormat types of Util/ViewCapture.cs.
+      AutoCAD's own AcDbMgd already loads System.Drawing.Common into the default context, and
+      PluginLoadContext resolves it there — a second copy would be a distinct Bitmap type that
+      GraphicsSystem.Device.GetSnapshot never returns.
+    -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <!-- AutoCAD 2027 (R26.0) -->
+    <PackageReference Include="AutoCAD.NET.Model" Version="26.0.0" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="26.0.0" />
+    <PackageReference Include="AutoCAD.NET" Version="26.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <!-- No NuGet package exists for pre-2025 AutoCAD's managed API (Autodesk only publishes
+         AutoCAD.NET.Model/Core from 25.0.0 onward) — reference the real DLLs from a local
+         AutoCAD 2021-2024 install or ObjectARX SDK instead. Private=false: never copy these
+         into the plugin's output, they're already loaded in AutoCAD's process. -->
+    <Reference Include="AcMgd">
+      <HintPath>$(AutoCadNetFxRefDir)\AcMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AutoCadNetFxRefDir)\AcDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AutoCadNetFxRefDir)\AcCoreMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Classic System.Drawing (GAC), not the System.Drawing.Common NuGet package: net48's
+         AutoCAD process never loads System.Drawing.Common, and there is no AssemblyLoadContext
+         "second copy" concern on net48 to begin with (see Bootstrap/PluginLoadContext.cs). -->
+    <Reference Include="System.Drawing" />
+    <!-- Lets this project (and its net48 Microsoft.NET.Sdk build) compile on a machine/CI
+         runner without .NET Framework 4.8 physically installed. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+    <!-- C# 9 `init` accessors (Journal/BatchJournalEntry.cs) and `record` types
+         (RpcHandlers/OperationsHandlers.cs's ApplyOutcome) need this marker type, built into
+         the BCL from net5.0 onward but absent from net48 — see IsExternalInitPolyfill.cs. -->
+  </ItemGroup>
+
+  <Target Name="RequireAutoCadNetFxRefDir" BeforeTargets="CoreCompile" Condition="'$(TargetFramework)' == 'net48' And '$(AutoCadNetFxRefDir)' == ''">
+    <Error Text="Building net48 requires -p:AutoCadNetFxRefDir=&quot;&lt;path to an AutoCAD 2021-2024 install or extracted ObjectARX SDK&gt;&quot; (must contain AcMgd.dll/AcDbMgd.dll/AcCoreMgd.dll). See SETUP.md, 'Building the net48 (AutoCAD 2021-2024) target'. Skip this target with `dotnet build -f net8.0-windows` or `-f net10.0-windows` if you don't need AutoCAD 2021-2024." />
+  </Target>
+
+</Project>

@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alephhq.tech/arcdio/schemas/device-protocol.schema.json",
+  "title": "DeviceMessage",
+  "description": "Canonical WSS Device Protocol contract between the TypeScript Device Gateway and the Windows Connector. The TypeScript and C# mirrors are hand-maintained because the current oneOf union is not generated correctly by the evaluated generators. Fixtures plus TypeScript AJV validation and C# deserialization tests enforce parity; update the schema, both mirrors, and fixtures in one change.",
+  "$defs": {
+    "ProtocolVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Oldest device protocol version this side can speak."
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Newest device protocol version this side can speak."
+        }
+      }
+    },
+    "CapabilityStatus": {
+      "type": "string",
+      "enum": ["online", "offline", "busy", "error"]
+    },
+    "AutoCadInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instanceId",
+        "processId",
+        "status",
+        "autocadVersion",
+        "pluginVersion",
+        "protocol",
+        "activeDocument"
+      ],
+      "properties": {
+        "instanceId": {
+          "type": "string",
+          "description": "Stable id for one running AutoCAD process, e.g. \"acad_18244\"."
+        },
+        "processId": { "type": "integer", "minimum": 0 },
+        "status": { "$ref": "#/$defs/CapabilityStatus" },
+        "autocadVersion": {
+          "type": "string",
+          "description": "AutoCAD product version, e.g. \"2024\"."
+        },
+        "pluginVersion": {
+          "type": "string",
+          "description": "CadAI.AutoCAD.dll version currently loaded in this instance."
+        },
+        "protocol": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Local IPC protocol version the loaded plugin speaks."
+        },
+        "activeDocument": { "type": ["string", "null"] }
+      }
+    },
+    "Capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "autocad": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["instances"],
+          "properties": {
+            "instances": { "type": "array", "items": { "$ref": "#/$defs/AutoCadInstance" } }
+          }
+        }
+      }
+    },
+    "ErrorEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "integer" },
+        "message": { "type": "string" },
+        "data": {}
+      }
+    },
+    "HelloMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "deviceId", "bridgeVersion", "protocol", "capabilities"],
+      "properties": {
+        "type": { "const": "hello" },
+        "deviceId": { "type": "string" },
+        "bridgeVersion": { "type": "string" },
+        "protocol": { "$ref": "#/$defs/ProtocolVersion" },
+        "capabilities": { "$ref": "#/$defs/Capabilities" }
+      }
+    },
+    "HelloAckMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "status"],
+      "properties": {
+        "type": { "const": "hello.ack" },
+        "status": { "type": "string", "enum": ["compatible", "update_required"] },
+        "protocol": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Negotiated protocol version, present when status is \"compatible\"."
+        },
+        "sessionId": { "type": "string" },
+        "minimumBridgeVersion": {
+          "type": "string",
+          "description": "Present when status is \"update_required\"."
+        }
+      }
+    },
+    "CapabilityUpdateMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "capability", "instance"],
+      "properties": {
+        "type": { "const": "capability.update" },
+        "capability": { "const": "autocad" },
+        "instance": { "$ref": "#/$defs/AutoCadInstance" }
+      }
+    },
+    "CapabilityExecuteTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "instanceId"],
+      "properties": {
+        "capability": { "const": "autocad" },
+        "instanceId": { "type": "string" }
+      }
+    },
+    "CapabilityOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "arguments"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Local IPC method name, e.g. \"entity.create\"."
+        },
+        "arguments": {
+          "type": "object",
+          "description": "Method-specific payload, validated against contracts/mcp-tools zod schemas before send and plugin DTOs on receive."
+        }
+      }
+    },
+    "CapabilityExecuteMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "requestId", "target", "operation"],
+      "properties": {
+        "type": { "const": "capability.execute" },
+        "requestId": { "type": "string" },
+        "target": { "$ref": "#/$defs/CapabilityExecuteTarget" },
+        "operation": { "$ref": "#/$defs/CapabilityOperation" },
+        "timeoutMs": { "type": "integer", "minimum": 1 },
+        "traceparent": {
+          "type": "string",
+          "description": "W3C Trace Context traceparent string (00-<trace-id>-<span-id>-<flags>) from the Cloud-side span wrapping this round trip. Log-correlation only — the Bridge has no OTEL SDK, so it does not start a linked span, it logs this value verbatim."
+        }
+      }
+    },
+    "CapabilityCancelMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "requestId"],
+      "properties": {
+        "type": { "const": "capability.cancel" },
+        "requestId": {
+          "type": "string",
+          "description": "The capability.execute requestId to cancel. Sent by the Device Gateway on its own execute timeout, or on an MCP client notifications/cancelled for the tool call that issued the request; the Bridge forwards it to the owning named-pipe call's CancellationToken. Never aborts work already in an AutoCAD transaction — only work that has not started yet."
+        }
+      }
+    },
+    "CapabilityResultMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "requestId", "status"],
+      "properties": {
+        "type": { "const": "capability.result" },
+        "requestId": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "error"] },
+        "result": { "type": "object" },
+        "error": { "$ref": "#/$defs/ErrorEnvelope" }
+      }
+    },
+    "HeartbeatMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "role", "timestamp"],
+      "properties": {
+        "type": { "const": "heartbeat" },
+        "role": { "type": "string", "enum": ["ping", "pong"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/HelloMessage" },
+    { "$ref": "#/$defs/HelloAckMessage" },
+    { "$ref": "#/$defs/CapabilityUpdateMessage" },
+    { "$ref": "#/$defs/CapabilityExecuteMessage" },
+    { "$ref": "#/$defs/CapabilityCancelMessage" },
+    { "$ref": "#/$defs/CapabilityResultMessage" },
+    { "$ref": "#/$defs/HeartbeatMessage" }
+  ]
+}

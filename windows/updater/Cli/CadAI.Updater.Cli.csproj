@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Dev/ops CLI around CadAI.Updater: generate a dev keypair, sign a release
+    package, check a manifest, or run a full manual/offline install. Not
+    consumed by the Bridge — the Bridge references the library project
+    directly (../CadAI.Updater.csproj); this exe only exists for humans.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CadAi.Updater.Cli</RootNamespace>
+    <AssemblyName>updater</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../CadAI.Updater.csproj" />
+  </ItemGroup>
+
+</Project>

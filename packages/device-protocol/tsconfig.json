@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "tsBuildInfoFile": "../../node_modules/.cache/device-protocol.tsbuildinfo"
+  },
+  "include": ["device-protocol.ts"]
+}

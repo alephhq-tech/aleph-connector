@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ApplicationPackage SchemaVersion="1.0"
+                     AppVersion="0.3.0"
+                     ProductCode="{761EAEA2-45B1-4ED2-A2DA-73F5B3114762}"
+                     UpgradeCode="{4D075A09-49BB-461C-9925-9732C4D8B70B}"
+                     Name="CadAI"
+                     Description="CadAI AutoCAD MCP integration — routes structured drawing operations from the CadAI Bridge into AutoCAD through its managed .NET API."
+                     Author="Aleph Technologies">
+
+  <CompanyDetails Name="Aleph Technologies" Url="https://www.alephhq.tech" Email="support@alephhq.tech" />
+
+  <Components Description="CadAI AutoCAD MCP plugin bootstrap">
+    <!--
+      One Components block, one ComponentEntry per AutoCAD managed-runtime generation —
+      RuntimeRequirements MUST be a child of each ComponentEntry, not a sibling under
+      Components, or AutoCAD 2025's Autoloader silently drops the whole component (no
+      load, no error); see
+      https://blog.autodesk.io/autocad-2025-update-your-packagecontentsxml-with-runtimerequirements/,
+      "EDIT" note, and docs/IMPLEMENTATION_STATUS.md's "AutoCAD 2025 Autoloader silently
+      dropped the plugin bundle" entry for how this was found. Each entry points ONLY at its
+      generation's Bootstrap assembly (see installer/autocad-bundle/README.md and
+      installer/README.md for the two-assembly rationale) — the Bootstrap reads
+      current.json next to it and loads the active Versions/{version}/{runtime}/CadAI.AutoCAD.dll
+      at runtime, so updates never touch this manifest.
+
+      SeriesMin/Max per Autodesk's "About Managed .NET Compatibility" table (see
+      plugin/CadAI.AutoCAD.csproj's header comment) — NOT verified against a real
+      AutoCAD 2021/2022/2023/2027 install; only R25.0 (AutoCAD 2025) has been. Known gap:
+      Autodesk has also shipped later R25.0/R25.1 patch updates whose managed API moved to
+      .NET 10 (see CadAI.AutoCAD.csproj's net8.0-windows ItemGroup comment) — an AutoCAD
+      2025/2026 install that received one of those updates needs the net10.0-windows entry
+      below instead, but Autodesk's Autoloader has no way to distinguish that from this
+      manifest alone (SeriesMin/Max only sees the product series, not the patch-level
+      runtime). Verify against the actual installed AutoCAD before relying on this split.
+    -->
+    <ComponentEntry AppName="CadAI"
+                     ModuleName="./Bootstrap/net48/CadAI.AutoCAD.Bootstrap.dll"
+                     AppDescription="CadAI AutoCAD MCP plugin bootstrap (AutoCAD 2021-2024, .NET Framework 4.8) — loads the active versioned plugin named in current.json"
+                     AppType=".NET"
+                     LoadOnAutoCADStartup="True">
+      <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.0" SeriesMax="R24.3" />
+    </ComponentEntry>
+
+    <ComponentEntry AppName="CadAI"
+                     ModuleName="./Bootstrap/net8.0-windows/CadAI.AutoCAD.Bootstrap.dll"
+                     AppDescription="CadAI AutoCAD MCP plugin bootstrap (AutoCAD 2025-2026, .NET 8) — loads the active versioned plugin named in current.json"
+                     AppType=".NET"
+                     LoadOnAutoCADStartup="True">
+      <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R25.0" SeriesMax="R25.1" />
+    </ComponentEntry>
+
+    <ComponentEntry AppName="CadAI"
+                     ModuleName="./Bootstrap/net10.0-windows/CadAI.AutoCAD.Bootstrap.dll"
+                     AppDescription="CadAI AutoCAD MCP plugin bootstrap (AutoCAD 2027+, .NET 10) — loads the active versioned plugin named in current.json"
+                     AppType=".NET"
+                     LoadOnAutoCADStartup="True">
+      <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R26.0" SeriesMax="R26.9" />
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

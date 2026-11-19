@@ -1,0 +1,6 @@
+{
+  "type": "capability.result",
+  "requestId": "req_02",
+  "status": "error",
+  "error": { "code": -32004, "message": "Layer \"WALL\" not found.", "data": { "name": "WALL" } }
+}
