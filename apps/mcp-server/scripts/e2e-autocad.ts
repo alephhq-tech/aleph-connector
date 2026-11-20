@@ -170,10 +170,10 @@ async function connectMock(): Promise<ConnectedStack> {
 }
 
 // Idempotent and safe: refuse to run against anything but this harness's own scratch document.
-// There is no `drawing.open`/`drawing.create` RPC (see `MockBridgeClient`'s own comment on why —
-// the plugin only ever sees documents a human already opened by hand), so the operator opens or
-// saves-as a drawing under the expected name once (RUN.md), and every call below targets it by
-// name so a mid-run tab switch on the human's side can never redirect a mutation elsewhere.
+// This harness never opens a drawing itself - scripts/prep-scratch.ts (run by the live lane, or by
+// hand) creates/saves/opens the scratch tab, and the operator can do the same by hand. Every call
+// below then targets the scratch by name, so a mid-run tab switch on the human's side can never
+// redirect a mutation elsewhere.
 
 async function assertScratchDocument(client: Client, scratchName: string): Promise<void> {
   const listed = await callTool(client, 'drawing', { operation: 'list_open' })
@@ -645,7 +645,11 @@ async function runOperationsScenario(client: Client, doc: string, mock: boolean)
     ],
     documentName: doc
   })
-  assertEqual(batchA.status, 'committed', 'batchA status')
+  // Dump the whole result, not just the status: a live "partial" carries phases[] and
+  // error.causeCode that say which wave failed and why, which the bare status never shows.
+  if (batchA.status !== 'committed') {
+    throw new Error(`batchA status: expected "committed", got ${JSON.stringify(batchA)}`)
+  }
   const batchAId = batchA.batchId as string
   const batchARefs = batchA.entityRefs as { handle: string }[]
   assertEqual(batchARefs.length, 2, 'batchA entity count')
@@ -695,6 +699,16 @@ async function runOperationsScenario(client: Client, doc: string, mock: boolean)
   }
   assert(sawUndoNotTop, 'undoing a non-top batch should fail with -32008 UndoNotTop')
 
+  const scratchHandles = async (): Promise<string[]> => {
+    const listed = await callTool(client, 'entity', {
+      operation: 'list',
+      layer: SCRATCH_LAYER,
+      documentName: doc
+    })
+    return ((listed.entities as { handle: string }[]) ?? []).map((e) => e.handle)
+  }
+  const beforeUndo = await scratchHandles()
+
   const undone = await callTool(client, 'operations', {
     operation: 'undo',
     batchId: batchBId,
@@ -702,16 +716,15 @@ async function runOperationsScenario(client: Client, doc: string, mock: boolean)
   })
   assertEqual(undone.status, 'undone', 'operations.undo status')
   if (!mock) {
-    for (const handle of batchBHandles) {
-      let stillPresent = true
-      try {
-        await callTool(client, 'entity', { operation: 'get', handle, documentName: doc })
-      } catch (err) {
-        if (err instanceof ToolCallError && err.code === BridgeErrorCode.EntityNotFound)
-          stillPresent = false
-        else throw err
-      }
-      assert(!stillPresent, `entity ${handle} should be gone after operations.undo`)
+    const afterUndo = await scratchHandles()
+    const removed = beforeUndo.filter((h) => !afterUndo.includes(h))
+    const batchBAlive = batchBHandles.filter((h) => afterUndo.includes(h))
+    if (batchBAlive.length > 0) {
+      throw new Error(
+        `undo reported "undone" but batchB survived: batchBAlive=[${batchBAlive}] ` +
+          `batchBHandles=[${batchBHandles}] removedByUndo=[${removed}] ` +
+          `before=${beforeUndo.length} after=${afterUndo.length} before=[${beforeUndo}] after=[${afterUndo}]`
+      )
     }
   }
 
@@ -721,6 +734,21 @@ async function runOperationsScenario(client: Client, doc: string, mock: boolean)
     documentName: doc
   })
   assertEqual(redone.status, 'redone', 'operations.redo status')
+  if (!mock) {
+    // Native redo may recreate with NEW handles, leaving the original batchBHandles pointing at
+    // erased ObjectIds — entity.get on those throws eWasErased rather than EntityNotFound. Read what
+    // actually exists on the layer now (the real proof redo restored geometry) and label the handle
+    // diff, so the failure names the step instead of a bare AutoCAD status string.
+    const afterRedo = await scratchHandles()
+    const originalGone = batchBHandles.filter((h) => !afterRedo.includes(h))
+    if (originalGone.length > 0) {
+      throw new Error(
+        `operations.redo returned "redone" but restored nothing: batchB handles still absent ` +
+          `[${originalGone}]; layer now=[${afterRedo}] (batchA entities present, the undone batchB ` +
+          `entity E4 was never recreated — a native gap, not a handle-stability issue)`
+      )
+    }
+  }
   for (const handle of batchBHandles) {
     await callTool(client, 'entity', { operation: 'get', handle, documentName: doc }) // throws if still missing
   }

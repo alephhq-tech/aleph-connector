@@ -699,6 +699,13 @@ namespace CadAI.AutoCAD.Util
 
                     return new OperationsApplyResult
                     {
+                        // Every phase committed. Omitting this leaves the DTO's empty-string default
+                        // on the wire, which the server's refs.ts cannot match to "committed" and
+                        // fail-closes as "partial" with a bogus "Nothing was changed" error — a fully
+                        // successful batch reading as half-failed. The live AutoCAD lane caught it
+                        // (operations:batch-undo-redo). Every other return here sets Status; this one
+                        // is the only one that mutates and falls through without an explicit status.
+                        Status = "committed",
                         ExecutionId = executionId,
                         BatchId = committedBatchIds.LastOrDefault(),
                         TaskId = request.TaskId,

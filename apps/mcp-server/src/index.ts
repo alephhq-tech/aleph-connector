@@ -2,12 +2,15 @@ import type { DeviceSocketData } from '@arcdio/device-gateway'
 import { createLogger, initTelemetry, type Logger } from '@arcdio/observability'
 import { createApp } from './app.js'
 import { loadMcpServerConfig } from './config.js'
+import { configureDevIdentity } from './dev/configureDevIdentity.js'
 
 // No-op unless Langfuse observability is configured.
-initTelemetry({ serviceName: 'mcp-autocad' })
+initTelemetry({ serviceName: 'arcdio-mcp' })
 
 const log: Logger = createLogger('mcp-server')
 const config = loadMcpServerConfig()
+// Opt-in dev-tier identity for the live AutoCAD E2E lane; production leaves identity fail-closed.
+configureDevIdentity(process.env, log)
 const app = createApp(config)
 app.gateway.startHeartbeatSweep()
 

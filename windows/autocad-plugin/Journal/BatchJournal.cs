@@ -25,7 +25,7 @@ namespace CadAI.AutoCAD.Journal
         private static readonly ConcurrentDictionary<string, List<string>> UndoneStacks = new();
         private static readonly ConcurrentDictionary<string, int> SequenceCounters = new();
         private static readonly ConcurrentDictionary<string, int> Generations = new();
-        private static readonly ConcurrentDictionary<string, bool> Suppressed = new();
+        private static readonly ConcurrentDictionary<string, int> GenerationSuppressDepth = new();
         private static readonly ConcurrentDictionary<string, bool> Hooked = new();
         private static readonly ConcurrentDictionary<string, object> Locks = new();
 
@@ -53,16 +53,28 @@ namespace CadAI.AutoCAD.Journal
 
         private static void Bump(string documentName)
         {
-            if (Suppressed.TryGetValue(documentName, out var suppressed) && suppressed) return;
+            if (GenerationSuppressDepth.TryGetValue(documentName, out var depth) && depth > 0) return;
             Generations.AddOrUpdate(documentName, 1, (_, g) => g + 1);
         }
 
         /// <summary>
-        /// Wrap our own synthetic <c>_.UNDO</c>/<c>_.REDO</c> commands with
-        /// <c>Suppress(name, true)</c>/<c>Suppress(name, false)</c> so they don't themselves count
-        /// as "the command history changed" divergence.
+        /// Wrap our own synthetic commands (the <c>_.UNDO</c> group/end pairs around a batch, and the
+        /// command context <see cref="CommandContext"/> establishes for <c>operations.apply</c> itself)
+        /// so they don't count as "the command history changed" divergence.
+        ///
+        /// This is a DEPTH counter, not a boolean: those scopes nest. <c>operations.apply</c> runs its
+        /// whole phase inside <c>ExecuteInCommandContextAsync</c> (depth 1), and the undo-group commands
+        /// it issues are each wrapped too (depth 2). With a single boolean the inner command's
+        /// <c>Suppress(false)</c> cleared the flag while the outer command context was still open, so
+        /// that context's own <c>CommandEnded</c> fired unsuppressed and bumped the generation right
+        /// after <see cref="Record"/> — making a freshly-committed batch permanently report
+        /// <c>UndoStackDiverged</c>. The live lane caught exactly that (operations:batch-undo-redo).
         /// </summary>
-        public static void Suppress(string documentName, bool suppressed) => Suppressed[documentName] = suppressed;
+        public static void Suppress(string documentName, bool suppressed)
+        {
+            if (suppressed) GenerationSuppressDepth.AddOrUpdate(documentName, 1, (_, d) => d + 1);
+            else GenerationSuppressDepth.AddOrUpdate(documentName, 0, (_, d) => d > 0 ? d - 1 : 0);
+        }
 
         public static int CurrentGeneration(string documentName) => Generations.TryGetValue(documentName, out var generation) ? generation : 0;
 

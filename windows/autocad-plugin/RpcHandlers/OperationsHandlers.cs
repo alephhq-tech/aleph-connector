@@ -512,7 +512,7 @@ namespace CadAI.AutoCAD.RpcHandlers
         }
         [JsonRpcMethod("operations.undo", UseSingleObjectParameterDeserialization = true)]
         public Task<OperationsUndoResult> Undo(OperationsUndoRequest request) =>
-            MainThreadDispatcher.RunAsync(() =>
+            MainThreadDispatcher.RunAsync(async () =>
             {
                 var doc = DocumentContext.Resolve(request.DocumentName);
                 BatchJournal.EnsureHooked(doc);
@@ -531,13 +531,7 @@ namespace CadAI.AutoCAD.RpcHandlers
                     throw PluginExceptions.UndoUnsupported(request.BatchId);
                 }
 
-                return CommandContext.RunAsync(doc, () =>
-                {
-                    RunSuppressed(doc.Name, () => doc.Editor.Command("_.UNDO", 1));
-                    ScreenRefresh.AfterCommit(doc);
-                    BatchJournal.MarkUndone(doc.Name, request.BatchId);
-                    return new OperationsUndoResult { BatchId = request.BatchId, Status = "undone" };
-                });
+                return await RunNativeCommandAtPromptAsync(doc, "_.UNDO 1\n", request.BatchId, undo: true);
             });
 
         [JsonRpcMethod("operations.redo", UseSingleObjectParameterDeserialization = true)]
@@ -556,13 +550,16 @@ namespace CadAI.AutoCAD.RpcHandlers
                     throw PluginExceptions.UndoUnsupported(request.BatchId);
                 }
 
-                return CommandContext.RunAsync(doc, () =>
-                {
-                    RunSuppressed(doc.Name, () => doc.Editor.Command("_.REDO", 1));
-                    ScreenRefresh.AfterCommit(doc);
-                    BatchJournal.MarkRedone(doc.Name, request.BatchId);
-                    return new OperationsUndoResult { BatchId = request.BatchId, Status = "redone" };
-                });
+                // REDO restores the most recently native-undone level (no repeat count — unlike
+                // "UNDO 1"). KNOWN LIVE GAP: the native UNDO above reverts the batch's committed
+                // Transaction (entity list confirms the level is gone), but the matching "_.REDO"
+                // returns "redone" (CommandEnded fires) WITHOUT repopulating it — the live lane reads
+                // aliveAfterRedo=[E2,E3] with E4 still absent, under both "REDO 1" and bare "_.REDO",
+                // so the count argument is not the cause. Undoing a raw Transaction (not a user-typed
+                // command) evidently leaves no native redo entry to restore; fixing this needs the
+                // same non-nested native UNDO-group the apply path is missing (see BatchJournal /
+                // CadOperationScheduler), not a command-string tweak. Left as an open redo defect.
+                return RunNativeCommandAtPromptAsync(doc, "_.REDO\n", request.BatchId, undo: false);
             });
 
         [JsonRpcMethod("operations.history", UseSingleObjectParameterDeserialization = true)]
@@ -596,6 +593,96 @@ namespace CadAI.AutoCAD.RpcHandlers
                     }).ToList(),
                 };
             });
+
+        /// <summary>Bounded wait for a queued native command (undo/redo) to reach a command boundary.</summary>
+        private const int NativeCommandTimeoutMs = 10000;
+
+        /// <summary>
+        /// Runs a native undo/redo command (e.g. "_.UNDO 1") and returns only once AutoCAD has
+        /// actually finished it, then flips the journal. The committed batch's Transaction is itself
+        /// the native undo level (StartTransaction = undo mark, Commit = undo end), so the level to
+        /// undo always exists — the old bug was WHERE the command was issued, never that there was
+        /// nothing to undo.
+        ///
+        /// UNDO/REDO cannot run while another command is active. They must NOT be issued inside
+        /// CommandContext.RunAsync, whose ExecuteInCommandContextAsync wrapper is itself a command
+        /// (CMDACTIVE==1 there): AutoCAD then silently refuses a nested command, so Editor.Command
+        /// (returns void) was a no-op reported as "undone" and CommandAsync hung the RPC (15s
+        /// capability.result timeout) — both caught by the live lane. Instead the command is queued
+        /// at the prompt via SendStringToExecute and awaited on CommandEnded/Cancelled/Failed. The
+        /// await yields this queued dispatcher item (MainThreadDispatcher.Drain is fire-and-forget),
+        /// so AutoCAD's message loop is free to run the queued command.
+        ///
+        /// Divergence suppression is held across the whole operation so our own native command's
+        /// CommandEnded does not register as a user command that diverged the undo stack, and CMDECHO/
+        /// NOMUTT keep the prompt clean, same as RunSuppressed.
+        /// </summary>
+        private static async Task<OperationsUndoResult> RunNativeCommandAtPromptAsync(
+            Document doc, string commandLine, string batchId, bool undo)
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CommandEventHandler onEnded = (_, _) => tcs.TrySetResult(true);
+            CommandEventHandler onCancelled = (_, _) => tcs.TrySetResult(false);
+            CommandEventHandler onFailed = (_, _) => tcs.TrySetResult(false);
+
+            object? prevEcho = null;
+            object? prevMutt = null;
+            BatchJournal.Suppress(doc.Name, true);
+            try
+            {
+                try
+                {
+                    prevEcho = Application.GetSystemVariable("CMDECHO");
+                    prevMutt = Application.GetSystemVariable("NOMUTT");
+                    Application.SetSystemVariable("CMDECHO", 0);
+                    Application.SetSystemVariable("NOMUTT", 1);
+                }
+                catch
+                {
+                }
+
+                doc.CommandEnded += onEnded;
+                doc.CommandCancelled += onCancelled;
+                doc.CommandFailed += onFailed;
+                // activate=false: the document is already active (checked by the caller); the trailing
+                // newline in commandLine submits it. echoCommand=false keeps it off the prompt history.
+                doc.SendStringToExecute(commandLine, false, false, false);
+
+                var winner = await Task.WhenAny(tcs.Task, Task.Delay(NativeCommandTimeoutMs));
+                if (winner != tcs.Task)
+                {
+                    throw PluginExceptions.TransactionFailed(new TimeoutException(
+                        $"native command \"{commandLine.Trim()}\" did not complete within {NativeCommandTimeoutMs}ms"));
+                }
+                var completed = await tcs.Task;
+
+                ScreenRefresh.AfterCommit(doc);
+                if (undo) BatchJournal.MarkUndone(doc.Name, batchId);
+                else BatchJournal.MarkRedone(doc.Name, batchId);
+                return new OperationsUndoResult
+                {
+                    BatchId = batchId,
+                    Status = completed
+                        ? (undo ? "undone" : "redone")
+                        : (undo ? "undo_cancelled" : "redo_cancelled")
+                };
+            }
+            finally
+            {
+                doc.CommandEnded -= onEnded;
+                doc.CommandCancelled -= onCancelled;
+                doc.CommandFailed -= onFailed;
+                try
+                {
+                    if (prevMutt != null) Application.SetSystemVariable("NOMUTT", prevMutt);
+                    if (prevEcho != null) Application.SetSystemVariable("CMDECHO", prevEcho);
+                }
+                catch
+                {
+                }
+                BatchJournal.Suppress(doc.Name, false);
+            }
+        }
 
         /// <summary>Runs <paramref name="action"/> without it counting toward divergence detection or echoing prompts to the command line.</summary>
         private static void RunSuppressed(string documentName, Action action)

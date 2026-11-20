@@ -12,6 +12,12 @@ coverage/
 *.user
 *.suo
 
+# Local dev-lane state: file-backed device grants and minted credentials. Never commit.
+.arcdio-dev/
+
+# Live E2E lane output artifact (rewritten each harness run; regenerate, don't commit).
+e2e-live-report.json
+
 # Windows installers and signed release artifacts
 artifacts/
 *.msi

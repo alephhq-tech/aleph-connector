@@ -170,6 +170,30 @@ public class BatchJournalTests
     }
 
     [Fact]
+    public void Bump_NestedSuppression_InnerReleaseKeepsOuterGuard()
+    {
+        // operations.apply's command context Suppress(true) (depth 1) wraps its own _.UNDO group/end
+        // commands, and each of those RunSuppressed also wraps (depth 2). With a single boolean the
+        // inner command's finally cleared the flag while the OUTER context was still open, so that
+        // context's own CommandEnded fired unsuppressed and bumped the generation right after Record —
+        // making a freshly-committed batch report UndoStackDiverged on the very next undo (the live
+        // lane caught it: operations:batch-undo-redo). The depth counter must stay >0 until the outer
+        // scope releases.
+        var doc = NewDocumentName();
+        BatchJournal.Suppress(doc, true); // outer apply command context
+        BatchJournal.Suppress(doc, true); // inner _.UNDO group command
+        BatchJournal.Suppress(doc, false); // inner command's finally
+
+        InvokeBump(doc); // the outer command's own CommandEnded, still inside the outer context
+
+        Assert.Equal(0, BatchJournal.CurrentGeneration(doc));
+
+        BatchJournal.Suppress(doc, false); // outer finally — now a real user command counts again
+        InvokeBump(doc);
+        Assert.Equal(1, BatchJournal.CurrentGeneration(doc));
+    }
+
+    [Fact]
     public void Bump_WhenNotSuppressed_IncrementsGenerationOnEachCall()
     {
         var doc = NewDocumentName();

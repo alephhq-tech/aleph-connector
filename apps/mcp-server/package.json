@@ -9,7 +9,9 @@
     "start": "bun run src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "smoke": "bun run src/smoke.ts",
-    "e2e": "bun run scripts/e2e-autocad.ts"
+    "e2e": "bun run scripts/e2e-autocad.ts",
+    "e2e:live": "bun run scripts/e2e-live.ts",
+    "mint:dev-credential": "bun run scripts/mint-dev-credential.ts"
   },
   "dependencies": {
     "@arcdio/observability": "workspace:*",

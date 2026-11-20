@@ -34,8 +34,8 @@ function Read-Const($path, $name) {
   $m.Matches[0].Groups[1].Value
 }
 
-$bridgeVersion = Read-Const (Join-Path $autocadRoot 'bridge\BridgeConfig.cs') 'BridgeVersion'
-$pluginVersion = Read-Const (Join-Path $autocadRoot 'plugin\PluginState.cs') 'PluginVersion'
+$bridgeVersion = Read-Const (Join-Path $autocadRoot 'connector\BridgeConfig.cs') 'BridgeVersion'
+$pluginVersion = Read-Const (Join-Path $autocadRoot 'autocad-plugin\PluginState.cs') 'PluginVersion'
 if ($bridgeVersion -ne $pluginVersion) {
   throw "Version train mismatch: BridgeConfig.BridgeVersion=$bridgeVersion vs PluginState.PluginVersion=$pluginVersion - bump both together (package-client.ps1 refuses the pair otherwise)."
 }
@@ -54,8 +54,8 @@ if (-not (Test-Path $bundleDir)) { throw "No installed plugin bundle at $bundleD
 }
 
 # --- Bridge -----------------------------------------------------------------
-$bridgeProj = Join-Path $autocadRoot 'bridge\CadAI.Bridge.csproj'
-$bridgeStage = Join-Path $autocadRoot 'bridge\bin\dev-refresh\bridge'
+$bridgeProj = Join-Path $autocadRoot 'connector\CadAI.Bridge.csproj'
+$bridgeStage = Join-Path $autocadRoot 'connector\bin\dev-refresh\bridge'
 Write-Host '==> dotnet publish bridge (Release) ...' -ForegroundColor Cyan
 & dotnet publish $bridgeProj -c Release -o $bridgeStage --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw 'Bridge publish failed.' }
@@ -86,13 +86,13 @@ if ($netFx) {
 foreach ($tfm in $tfms) {
   Write-Host "==> Building plugin + Bootstrap ($tfm) ..." -ForegroundColor Cyan
   # Same single-TFM override watch-plugin.ps1 uses against the multi-target csproj.
-  & dotnet build (Join-Path $autocadRoot 'plugin\Bootstrap\CadAI.AutoCAD.Bootstrap.csproj') -p:TargetFrameworks=$tfm --nologo -v q
+  & dotnet build (Join-Path $autocadRoot 'autocad-plugin\Bootstrap\CadAI.AutoCAD.Bootstrap.csproj') -p:TargetFrameworks=$tfm --nologo -v q
   if ($LASTEXITCODE -ne 0) { Write-Warning "Bootstrap $tfm build FAILED - skipping $tfm."; continue }
-  & dotnet build (Join-Path $autocadRoot 'plugin\CadAI.AutoCAD.csproj') -p:TargetFrameworks=$tfm --nologo -v q
+  & dotnet build (Join-Path $autocadRoot 'autocad-plugin\CadAI.AutoCAD.csproj') -p:TargetFrameworks=$tfm --nologo -v q
   if ($LASTEXITCODE -ne 0) { Write-Warning "Plugin $tfm build FAILED - skipping $tfm."; continue }
 
-  $bootSrc = Join-Path $autocadRoot "plugin\Bootstrap\bin\Debug\$tfm"
-  $plugSrc = Join-Path $autocadRoot "plugin\bin\Debug\$tfm"
+  $bootSrc = Join-Path $autocadRoot "autocad-plugin\Bootstrap\bin\Debug\$tfm"
+  $plugSrc = Join-Path $autocadRoot "autocad-plugin\bin\Debug\$tfm"
   $dest = Join-Path $bundleDir "Versions\$train\$tfm"
 
   # First refresh to a new train: create the version folder from the previously active one so the

@@ -24,8 +24,14 @@ describe('autocad-plugin never activates a document', () => {
     expect(sources.length).toBeGreaterThan(5)
   })
 
+  // The invariant is "never switches the user's active tab" (#68). SendStringToExecute is only a
+  // hazard in that sense when it activates a document (the 2nd positional `activate` flag is true);
+  // queueing a top-level native command (e.g. "_.UNDO 1") with activate=false activates nothing and
+  // is the only way to run such a command once the codebase's measured constraint holds — a nested
+  // Editor.Command of UNDO/REDO inside ExecuteInCommandContextAsync is a silent no-op (CMDACTIVE==1
+  // there; live lane). So flag only the activating form, not every SendStringToExecute call.
   for (const [label, pattern] of [
-    ['SendStringToExecute', /SendStringToExecute\s*\(/],
+    ['activating SendStringToExecute', /SendStringToExecute\s*\([^;]*?,\s*true\b/],
     ['assigning MdiActiveDocument', /MdiActiveDocument\s*=(?!=)/],
     ['Document.Activate()', /\.Activate\s*\(\s*\)/]
   ] as const) {
