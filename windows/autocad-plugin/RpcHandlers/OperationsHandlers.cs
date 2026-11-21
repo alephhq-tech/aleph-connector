@@ -656,7 +656,19 @@ namespace CadAI.AutoCAD.RpcHandlers
                 }
                 var completed = await tcs.Task;
 
-                ScreenRefresh.AfterCommit(doc);
+                // No ScreenRefresh on this native path: _.UNDO/_.REDO are commands AutoCAD runs and
+                // regenerates itself. (A repaint between the pair is NOT what broke REDO — removing it
+                // changed nothing.) KNOWN OPEN DEFECT, measured across three hypotheses, all falsified
+                // on the live lane: native REDO does not restore a batch on AutoCAD 2022. undo
+                // genuinely reverts (entity list: the level is gone) yet REDO reports "redone" while
+                // restoring nothing, under (a) REDO with/without a count arg, (b) undo->redo with zero
+                // reads between them, (c) the apply phase wrapped in a real registered command
+                // (ARCDIOAPPLY) so its writes are a command-level undo record, not just a raw
+                // transaction. AutoCAD 2022 REDO replays a *command action*, and neither a managed
+                // transaction nor that command host performs an entity-creating action AutoCAD can
+                // replay. Fixing redo needs journal replay (BatchJournal/CadTaskLedger pre-images),
+                // which the "native-lifo" contract and handle stability forbid as-is — a separate,
+                // contract-changing slice.
                 if (undo) BatchJournal.MarkUndone(doc.Name, batchId);
                 else BatchJournal.MarkRedone(doc.Name, batchId);
                 return new OperationsUndoResult

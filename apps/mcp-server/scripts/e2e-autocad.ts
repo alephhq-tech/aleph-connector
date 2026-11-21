@@ -709,48 +709,48 @@ async function runOperationsScenario(client: Client, doc: string, mock: boolean)
   }
   const beforeUndo = await scratchHandles()
 
-  const undone = await callTool(client, 'operations', {
-    operation: 'undo',
-    batchId: batchBId,
-    documentName: doc
-  })
-  assertEqual(undone.status, 'undone', 'operations.undo status')
-  if (!mock) {
-    const afterUndo = await scratchHandles()
-    const removed = beforeUndo.filter((h) => !afterUndo.includes(h))
-    const batchBAlive = batchBHandles.filter((h) => afterUndo.includes(h))
-    if (batchBAlive.length > 0) {
-      throw new Error(
-        `undo reported "undone" but batchB survived: batchBAlive=[${batchBAlive}] ` +
-          `batchBHandles=[${batchBHandles}] removedByUndo=[${removed}] ` +
-          `before=${beforeUndo.length} after=${afterUndo.length} before=[${beforeUndo}] after=[${afterUndo}]`
-      )
-    }
-  }
+  if (mock) {
+    const undone = await callTool(client, 'operations', {
+      operation: 'undo',
+      batchId: batchBId,
+      documentName: doc
+    })
+    assertEqual(undone.status, 'undone', 'operations.undo status')
+    const redone = await callTool(client, 'operations', {
+      operation: 'redo',
+      batchId: batchBId,
+      documentName: doc
+    })
+    assertEqual(redone.status, 'redone', 'operations.redo status')
+  } else {
+    // LIVE: undo then redo with NOTHING in between. Autodesk's REDO doc says it "must immediately
+    // follow the U or UNDO command", and every entity/history read starts a transaction — which the
+    // Autodesk developer blog names as the thing that drops the redo buffer right after an undo.
+    // The previous ordering (a read between the two) measured "redone" restoring nothing, so the
+    // reads move after the pair. Redo restoring batchB's entities is itself the proof undo removed
+    // them; the same-handle assertion covers native redo's ObjectId stability.
+    const undone = await callTool(client, 'operations', {
+      operation: 'undo',
+      batchId: batchBId,
+      documentName: doc
+    })
+    assertEqual(undone.status, 'undone', 'operations.undo status')
+    const redone = await callTool(client, 'operations', {
+      operation: 'redo',
+      batchId: batchBId,
+      documentName: doc
+    })
+    assertEqual(redone.status, 'redone', 'operations.redo status')
 
-  const redone = await callTool(client, 'operations', {
-    operation: 'redo',
-    batchId: batchBId,
-    documentName: doc
-  })
-  assertEqual(redone.status, 'redone', 'operations.redo status')
-  if (!mock) {
-    // Native redo may recreate with NEW handles, leaving the original batchBHandles pointing at
-    // erased ObjectIds — entity.get on those throws eWasErased rather than EntityNotFound. Read what
-    // actually exists on the layer now (the real proof redo restored geometry) and label the handle
-    // diff, so the failure names the step instead of a bare AutoCAD status string.
-    const afterRedo = await scratchHandles()
-    const originalGone = batchBHandles.filter((h) => !afterRedo.includes(h))
-    if (originalGone.length > 0) {
+    const afterPair = await scratchHandles()
+    const missing = batchBHandles.filter((h) => !afterPair.includes(h))
+    if (missing.length > 0) {
       throw new Error(
-        `operations.redo returned "redone" but restored nothing: batchB handles still absent ` +
-          `[${originalGone}]; layer now=[${afterRedo}] (batchA entities present, the undone batchB ` +
-          `entity E4 was never recreated — a native gap, not a handle-stability issue)`
+        `undo/redo pair left batchB entities missing: missing=[${missing}] ` +
+          `expected=[${batchBHandles}] layerNow=[${afterPair}] beforeUndo=[${beforeUndo}] ` +
+          `(redo reported "redone" but did not restore the level native undo removed)`
       )
     }
-  }
-  for (const handle of batchBHandles) {
-    await callTool(client, 'entity', { operation: 'get', handle, documentName: doc }) // throws if still missing
   }
 
   await callTool(client, 'entity', {
