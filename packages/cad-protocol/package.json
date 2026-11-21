@@ -1,5 +1,5 @@
 {
-  "name": "@arcdio/cad-protocol",
+  "name": "@aleph-connector/cad-protocol",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     "validate": "bun run scripts/validate-contracts.ts"
   },
   "dependencies": {
-    "@arcdio/cad-types": "workspace:*",
-    "@arcdio/device-protocol": "workspace:*"
+    "@aleph-connector/cad-types": "workspace:*",
+    "@aleph-connector/device-protocol": "workspace:*"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

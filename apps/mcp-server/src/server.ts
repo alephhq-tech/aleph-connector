@@ -1,11 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/server'
-import type { DeviceGateway } from '@arcdio/device-contracts'
+import type { DeviceGateway } from '@aleph-connector/device-contracts'
 import type { BridgeClient } from './bridge/BridgeClient.js'
 import { DocumentPin, PinnedBridgeClient } from './bridge/PinnedBridgeClient.js'
 import { loadDraftingGuide, registerDraftingGuide } from './guide/draftingGuide.js'
 import { registerAllTools } from './tools/index.js'
 
-const SERVER_NAME = 'arcdio'
+const SERVER_NAME = 'aleph-connector'
 const SERVER_VERSION = '0.2.0'
 
 // Read once per process; createServer runs per MCP session.

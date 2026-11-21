@@ -10,7 +10,7 @@ import {
   type Capabilities,
   type DeviceMessage,
   type ProtocolVersion
-} from '@arcdio/cad-protocol'
+} from '@aleph-connector/cad-protocol'
 import {
   DeviceGatewayError,
   GatewayErrorCode,
@@ -19,9 +19,9 @@ import {
   type DeviceExecutionResult,
   type DeviceGateway,
   type DeviceSummary
-} from '@arcdio/device-contracts'
-import { createLogger, withSpan, traceparentOf, type Logger } from '@arcdio/observability'
-import { validateDeviceGrant } from '@arcdio/identity'
+} from '@aleph-connector/device-contracts'
+import { createLogger, withSpan, traceparentOf, type Logger } from '@aleph-connector/observability'
+import { validateDeviceGrant } from '@aleph-connector/identity'
 import type { DeviceAuthenticator } from './auth/DeviceAuthenticator.js'
 import type { GatewayConfig } from './config.js'
 import {
@@ -61,7 +61,7 @@ export interface DeviceWebSocketHandlers {
  * Implements the Device Gateway (AUTOCAD_MCP_PROJECT.md section 7): accepts the Bridge's WSS
  * connection, negotiates protocol version, tracks capability snapshots, and correlates
  * `capability.execute`/`capability.result` frames. Also implements {@link DeviceGateway}, the
- * Internal Command API server calls — see @arcdio/device-contracts.
+ * Internal Command API server calls — see @aleph-connector/device-contracts.
  */
 export class DeviceGatewayService implements DeviceGateway {
   private readonly registry = new DeviceRegistry()

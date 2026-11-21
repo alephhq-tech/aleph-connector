@@ -9,7 +9,7 @@ import type {
   AutoCadInstance,
   Capabilities,
   ErrorEnvelope
-} from '@arcdio/device-protocol'
+} from '@aleph-connector/device-protocol'
 
 export interface DeviceExecutionRequest {
   /** Which user device (Bridge instance) should run this. */
@@ -21,7 +21,7 @@ export interface DeviceExecutionRequest {
    */
   instanceId?: string
   operation: {
-    /** Local IPC method name, e.g. "entity.create" — see @arcdio/cad-protocol RpcMethod. */
+    /** Local IPC method name, e.g. "entity.create" — see @aleph-connector/cad-protocol RpcMethod. */
     type: string
     arguments: Record<string, unknown>
   }
@@ -76,7 +76,7 @@ export interface DeviceGateway {
 
 /**
  * Error codes for device-routing failures — distinct from AutoCAD-plugin errors
- * (@arcdio/cad-protocol BridgeErrorCode).
+ * (@aleph-connector/cad-protocol BridgeErrorCode).
  */
 export const GatewayErrorCode = {
   DeviceNotFound: -33001,

@@ -4,8 +4,8 @@ import type {
   DeviceExecutionResult,
   DeviceGateway,
   DeviceSummary
-} from '@arcdio/device-contracts'
-import type { AutoCadInstance } from '@arcdio/cad-protocol'
+} from '@aleph-connector/device-contracts'
+import type { AutoCadInstance } from '@aleph-connector/cad-protocol'
 
 /**
  * Fakes only the metadata surface of {@link DeviceGateway} (`getContext`, `listDevices`) for the

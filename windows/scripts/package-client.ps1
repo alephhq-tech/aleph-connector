@@ -103,8 +103,8 @@ if (-not $bridgeVersionMatch.Success -or $bridgeVersionMatch.Groups[1].Value -ne
     throw "BridgeConfig.BridgeVersion must match packaged release version $Version."
 }
 
-# Single source of truth for the standalone emergency update channel (aleph-platform#329): consumed
-# here, by .github/workflows/release-desktop.yml, and pinned by bridge.Tests/UpdateChannelContractTests.cs
+# Single source of truth for the Aleph Connector update channel: consumed here, by
+# .github/workflows/release-connector.yml, and pinned by connector.Tests/UpdateChannelContractTests.cs
 # so the published manifest URL and the URL baked into every install.ps1 can never drift apart.
 $updateChannelPath = Join-Path $repoRoot 'contracts/update-channel.json'
 if (-not (Test-Path $updateChannelPath -PathType Leaf)) {
@@ -167,7 +167,7 @@ $publicKeyDir = Join-Path $OutputDir $updateChannel.publicKeyPackageDir
 New-Item -ItemType Directory -Force -Path $publicKeyDir | Out-Null
 Copy-Item -Path $publicKeySource -Destination (Join-Path $publicKeyDir 'public.pem') -Force
 
-# The package carries no config.json. ARCDIO onboarding provisions the gateway URL and device
+# The package carries no config.json. Aleph Connector onboarding provisions the gateway URL and device
 # credential after owner-confirmed pairing.
 # 2. Build AutoCAD plugin (Bootstrap + Versioned Plugin), per generation
 $bootstrapProj = Join-Path $repoRoot 'autocad-plugin/Bootstrap/CadAI.AutoCAD.Bootstrap.csproj'
@@ -276,7 +276,7 @@ Write-Host "`n[4/4] Creating client installer scripts and instructions ..."
 $clientInstallScript = @'
 #Requires -Version 5.1
 param(
-    # ARCDIO onboarding passes the gateway URL and the device credential issued after pairing.
+    # Aleph Connector onboarding passes the gateway URL and the device credential issued after pairing.
     # The credential goes into identity.json, not a User-scope environment variable, so it can be
     # rotated without an environment override pinning an expired token.
     [string]$GatewayUrl = "",
@@ -348,7 +348,7 @@ if (-not (Test-Path $desktopAppDir) -or -not @(Get-ChildItem $desktopAppDir -Dir
 # 1. Validate prerequisites and back up existing credential/env before any mutations.
 # These will be restored if update fails during staging, activation, or startup verification.
 if (-not $DeviceToken) {
-    throw "DeviceToken is required. Pair this machine in ARCDIO Portal, then reinstall with the issued device credential."
+    Write-Warning "No DeviceToken yet — Bridge will install without a credential. Pair at https://portal.alephhq.tech and re-run Setup / install.ps1 with the minted ABT."
 }
 $identityDir = Join-Path $env:LOCALAPPDATA 'CadAI\bridge'
 $identityPath = Join-Path $identityDir 'identity.json'
@@ -462,6 +462,13 @@ try {
     if ($GatewayUrl) {
         [Environment]::SetEnvironmentVariable("CADAI_GATEWAY_URL", $GatewayUrl, "User")
         Write-Host "CADAI_GATEWAY_URL set to $GatewayUrl (User scope)"
+    }
+    if (-not $DeviceId) {
+        # Prefer an existing paired identity; otherwise mint a stable local deviceId for portal pairing.
+        if ($identityBackup) {
+            try { $DeviceId = ((ConvertFrom-Json $identityBackup).deviceId) } catch { $DeviceId = '' }
+        }
+        if (-not $DeviceId) { $DeviceId = 'device_' + ([Guid]::NewGuid().ToString('N')) }
     }
     if ($DeviceId) { [Environment]::SetEnvironmentVariable("CADAI_DEVICE_ID", $null, "User") }
     [Environment]::SetEnvironmentVariable("CADAI_DEVICE_TOKEN", $null, "User")
@@ -745,13 +752,23 @@ CadAI AutoCAD Integration - Client Package
 ================================================================================
 
 This package contains:
-1. bridge/        - CadAI.Bridge.exe (background daemon communicating with Cloud Gateway)
-2. CadAI.bundle/  - AutoCAD ApplicationPlugins bundle (autoloads in AutoCAD)
-3. install.ps1    - Automated 1-click installation script
-4. uninstall.ps1  - Clean removal script
+1. AlephConnector.Setup.exe - Windows Setup wizard (detect agents, install MCP + AutoCAD)
+2. bridge/          - CadAI.Bridge.exe (headless daemon to the Device Gateway)
+3. CadAI.bundle/    - AutoCAD ApplicationPlugins bundle (autoloads in AutoCAD)
+4. install.ps1      - Automated installation script (also invoked by AlephConnector.Setup)
+5. uninstall.ps1    - Clean removal script
 
 --------------------------------------------------------------------------------
-OPTION 1: AUTOMATED INSTALL (Recommended, No Admin Required)
+OPTION 1: SETUP WIZARD (Recommended)
+--------------------------------------------------------------------------------
+Double-click `AlephConnector.Setup.exe`:
+- Install Bridge + AutoCAD plugin
+- Detect Cursor / Claude Desktop / Claude Code / VS Code / Codex
+- Write Aleph MCP (OAuth) into the agents you select
+Then open https://portal.alephhq.tech to sign in and pair the device.
+
+--------------------------------------------------------------------------------
+OPTION 2: POWERShell INSTALL (No Admin Required)
 --------------------------------------------------------------------------------
 Right-click PowerShell -> "Run with PowerShell" on `install.ps1`:
 Or open PowerShell in this folder and run:
@@ -760,7 +777,7 @@ Or open PowerShell in this folder and run:
 
 This will:
 - Copy the Bridge to %ProgramData%\CadAI\Bridge and start it at Windows logon.
-- Store the device credential in %LOCALAPPDATA%\CadAI\bridge\identity.json (ARCDIO onboarding rotates it).
+- Store the device credential in %LOCALAPPDATA%\CadAI\bridge\identity.json (Aleph Connector onboarding rotates it).
 - Copy CadAI.bundle to %APPDATA%\Autodesk\ApplicationPlugins\CadAI.bundle.
 - AutoCAD will automatically load the plugin every time it starts.
 
@@ -804,6 +821,19 @@ Type `CADAISTATUS` in AutoCAD to confirm anytime.
 '@
 Set-Content -Path (Join-Path $OutputDir 'README.txt') -Value ($clientReadmeText -replace '\{\{VERSION\}\}', $Version)
 
+# Setup wizard (WinForms): detect agent CLIs, write MCP configs, invoke install.ps1 for AutoCAD.
+$setupProj = Join-Path $repoRoot 'installer/setup/AlephConnector.Setup.csproj'
+$setupOut = Join-Path $OutputDir 'setup-build'
+Write-Host "`n--- Publishing AlephConnector.Setup ---"
+New-Item -ItemType Directory -Force -Path $setupOut | Out-Null
+& dotnet publish $setupProj -c Release -o $setupOut --nologo -v q @crossWindowsArgs
+if ($LASTEXITCODE -ne 0) { throw "dotnet publish AlephConnector.Setup failed." }
+Copy-Item -Force (Join-Path $setupOut 'AlephConnector.Setup.exe') (Join-Path $OutputDir 'AlephConnector.Setup.exe')
+Get-ChildItem $setupOut -File | Where-Object { $_.Extension -in '.dll', '.json', '.pdb' } | ForEach-Object {
+    Copy-Item -Force $_.FullName (Join-Path $OutputDir $_.Name)
+}
+Remove-Item -LiteralPath $setupOut -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "  AlephConnector.Setup.exe -> $OutputDir"
 
 $validator = Join-Path $repoRoot 'scripts/Test-PackagedBundle.ps1'
 $requiredGenerations = if ($RequireAllGenerations) { @('net48', 'net8.0-windows', 'net10.0-windows') } else { @() }

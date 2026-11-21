@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { BridgeErrorCode, BridgeRpcError, RpcMethod } from '@arcdio/cad-protocol'
-import type { EntityOperation } from '@arcdio/cad-protocol'
-import { db } from '@arcdio/data'
+import { BridgeErrorCode, BridgeRpcError, RpcMethod } from '@aleph-connector/cad-protocol'
+import type { EntityOperation } from '@aleph-connector/cad-protocol'
+import { db } from '@aleph-connector/data'
 import {
   editApplyParams,
   editBeginParams,
@@ -11,7 +11,7 @@ import {
   editDiscardParams,
   editAcceptParams,
   idempotencyKey
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { attestBatchOutcome, outcomeMeta } from './attestOutcome.js'
 import { withInstance } from './instanceScope.js'

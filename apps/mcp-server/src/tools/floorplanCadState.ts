@@ -1,4 +1,4 @@
-import type { Point2D } from '@arcdio/engineering'
+import type { Point2D } from '@aleph-connector/engineering'
 import {
   assembleRoomBoundaries,
   type RegionRing,

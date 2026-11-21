@@ -87,6 +87,11 @@ foreach ($generation in $RequiredGenerations) {
 
 # The updater's packaging script must be syntactically valid under Windows PowerShell;
 # compiling the .NET Bridge alone cannot catch a broken one-click installer.
+$setupExe = Join-Path $package 'AlephConnector.Setup.exe'
+if (-not (Test-Path $setupExe -PathType Leaf)) {
+    throw "Packaged Aleph Connector Setup wizard is missing: $setupExe"
+}
+
 $installScript = Join-Path $package 'install.ps1'
 if (-not (Test-Path $installScript -PathType Leaf)) {
     throw "Packaged client installer is missing: $installScript"

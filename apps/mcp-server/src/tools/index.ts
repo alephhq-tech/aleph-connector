@@ -1,5 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server'
-import type { DeviceGateway } from '@arcdio/device-contracts'
+import type { DeviceGateway } from '@aleph-connector/device-contracts'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import type { DocumentPin } from '../bridge/PinnedBridgeClient.js'
 import { registerConstructTools } from './construct.js'

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import type { EntityRef } from '@arcdio/cad-types'
+import type { EntityRef } from '@aleph-connector/cad-types'
 import { project, shapeRefs } from './resultShape.js'
 
 const refs = (handles: string[]): EntityRef[] =>

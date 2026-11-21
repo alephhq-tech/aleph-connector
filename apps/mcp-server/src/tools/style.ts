@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import {
   idempotencyKey,
   styleDimStylesCreateParams,
@@ -8,7 +8,7 @@ import {
   styleLinetypesLoadParams,
   styleTextStylesCreateParams,
   styleTextStylesSetCurrentParams
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { withInstance } from './instanceScope.js'
 import { operationKey } from './operationIdentity.js'

@@ -1,17 +1,17 @@
-# ARCDIO
+# Aleph Connector
 
 Private, cloud-managed CAD tooling for user-owned AI agents.
 
-ARCDIO exposes authenticated MCP tools to Claude, Codex, Antigravity, and other MCP clients. It does not host or operate an AI model. Cloud services own authorization, CAD semantics, validation, geometry, and engineering rules. The Windows Connector and AutoCAD plugin execute typed operations against the user's live DWG.
+Aleph Connector exposes authenticated MCP tools to Claude, Codex, Antigravity, and other MCP clients. It does not host or operate an AI model. Cloud services own authorization, CAD semantics, validation, geometry, and engineering rules. The Windows Connector and AutoCAD plugin execute typed operations against the user's live DWG.
 
 ## Product boundary
 
 - **Agent:** understands intent, reasons, and selects tools.
-- **ARCDIO Cloud:** authenticates clients and devices; inspects, plans, validates, dispatches, and verifies CAD work.
+- **Aleph Connector Cloud:** authenticates clients and devices; inspects, plans, validates, dispatches, and verifies CAD work.
 - **Windows Connector:** maintains the outbound device connection and routes typed requests over local IPC.
 - **AutoCAD plugin:** uses the Autodesk .NET API with document identity, main-thread execution, locks, transactions, rollback, and receipts.
 
-ARCDIO never accepts arbitrary AutoCAD commands, AutoLISP, C# scripts, shell commands, or simulated mouse/keyboard input.
+MCP clients authenticate with **OAuth 2.1 + PKCE** (no static API tokens). Device Connectors use a separate paired credential on `/device`. Aleph Connector never accepts arbitrary AutoCAD commands, AutoLISP, C# scripts, shell commands, or simulated mouse/keyboard input.
 
 ## Repository layout
 

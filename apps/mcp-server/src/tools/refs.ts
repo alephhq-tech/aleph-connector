@@ -1,4 +1,4 @@
-import { BridgeErrorCode, BridgeRpcError, RpcMethod } from '@arcdio/cad-protocol'
+import { BridgeErrorCode, BridgeRpcError, RpcMethod } from '@aleph-connector/cad-protocol'
 import type {
   EntityOperation,
   EntityRef,
@@ -6,8 +6,8 @@ import type {
   OperationsApplyResult,
   PhaseExecutionInfo,
   StateConflict
-} from '@arcdio/cad-protocol'
-import { arrayCopyCount, type EntityTransformInput } from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-protocol'
+import { arrayCopyCount, type EntityTransformInput } from '@aleph-connector/cad-tools'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 
 /**

@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { CadScanEntity } from '@arcdio/cad-protocol'
-import { db } from '@arcdio/data'
-import { cadStateService } from '@arcdio/cad-state'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { CadScanEntity } from '@aleph-connector/cad-protocol'
+import { db } from '@aleph-connector/data'
+import { cadStateService } from '@aleph-connector/cad-state'
 import {
   assembleFloorplanGeometry,
   emptyGeometrySource,
@@ -20,7 +20,7 @@ import {
   drawingSaveParams,
   drawingSetupParams,
   idempotencyKey
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import type { DocumentPin } from '../bridge/PinnedBridgeClient.js'
 import { withInstance } from './instanceScope.js'
@@ -175,7 +175,7 @@ const MAX_LAYOUT_POLYLINE_ROWS = 10_000
 
 /**
  * Builds the production {@link RegionGeometrySource}: reads the CAD State snapshot the run engine
- * already indexed (via the shared `@arcdio/data`), and hydrates only a region's full geometry
+ * already indexed (via the shared `@aleph-connector/data`), and hydrates only a region's full geometry
  * through one bounded `cad.scan`. It NEVER claims an index job or writes a snapshot — that single
  * scan path belongs to run-engine. `workspaceId` is the authenticated tenant from the MCP caller;
  * every lookup is scoped to it, so another workspace's snapshot can never answer.

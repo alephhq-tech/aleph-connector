@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import {
   createEntityParams,
   entityAreaMeasureParams,
@@ -12,7 +12,7 @@ import {
   entityUpdateParams,
   idempotencyKey,
   viewOverride
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { applyBatch } from './applyBatch.js'
 import { BULK_REVIEW_MIN_ENTITIES } from './capture.js'

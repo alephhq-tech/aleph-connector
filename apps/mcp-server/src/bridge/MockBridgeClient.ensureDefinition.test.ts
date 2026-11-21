@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from './MockBridgeClient.js'
 
 describe('block.ensureDefinition RPC (Slice 06 of pccc-cad-drawing-truth)', () => {

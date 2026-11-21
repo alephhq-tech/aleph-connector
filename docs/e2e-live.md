@@ -48,35 +48,35 @@ Run **from `apps/mcp-server`**: Bun loads `.env` relative to the process CWD, so
 What the lane automates, in order:
 
 1. **Doctor** — read-only preflight; aborts on any missing prerequisite.
-2. **Server** — starts `src/index.ts` with `ARCDIO_DEV_IDENTITY=1` and waits for `/health`.
-3. **Credential** — `scripts/mint-dev-credential.ts` first-claims a dev grant for the connector's own
-   `deviceId`, writes the credential to `%LOCALAPPDATA%\CadAI\bridge\identity.json`, and emits the
-   bearer token for `/mcp`.
-4. **Bridge restart** — `schtasks /End` then `/Run` on `CadAI Bridge`, then waits for
+2. **Server** — starts `src/index.ts` with `ALEPH_DEV_IDENTITY=1` and waits for `/health`.
+3. **Device credential** — `scripts/mint-dev-credential.ts` first-claims a grant for the connector's
+   `deviceId` and writes it to `%LOCALAPPDATA%\CadAI\bridge\identity.json` (WSS `/device` only).
+4. **MCP OAuth** — `scripts/oauth-access-token.ts` completes authorization_code + PKCE against the
+   local AS and returns an access_token for `/mcp` (device ABTs are rejected on MCP).
+5. **Bridge restart** — `schtasks /End` then `/Run` on `CadAI Bridge`, then waits for
    `health.json` to report `pluginLoaded && ipcConnected && bridgeOnline`.
-5. **Scratch** — `scripts/prep-scratch.ts` opens/creates the harness's scratch drawing and activates
+6. **Scratch** — `scripts/prep-scratch.ts` opens/creates the harness's scratch drawing and activates
    it (the harness refuses to run unless the active document is exactly its scratch name).
-6. **Harness** — `scripts/e2e-autocad.ts` runs every scenario through `@modelcontextprotocol/client`;
+7. **Harness** — `scripts/e2e-autocad.ts` runs every scenario through `@modelcontextprotocol/client`;
    scratch closed and server stopped afterwards.
 
-## The dev identity tier
+## Auth model (OAuth MCP + device ABT)
 
-Production identity in `@arcdio/identity` is **fail-closed**: nothing can authenticate until the real
-ARCDIO MCP OAuth issuer exists. The lane opts into
-`apps/mcp-server/src/dev/bridgeToken.ts` with `ARCDIO_DEV_IDENTITY=1`, which:
+- **MCP `/mcp`**: OAuth 2.1 authorization_code + PKCE (S256). Interactive login goes through
+  Aleph Portal (`ALEPH_PORTAL_URL`, production `https://portal.alephhq.tech`) — consent at
+  `/oauth/consent`, then portal calls mcp-server `POST /oauth/portal/approve` with shared
+  `PORTAL_APPROVE_SECRET`. Same path locally and in production. No static API token and no env
+  fake users.
+- **Device `/device`**: separate ABT credential in `identity.json` (HMAC
+  `${JWT_SECRET}:autocad-bridge-token`). Production / portal pairing writes Postgres
+  `device_grants` (see `apps/portal`). The live e2e lane opts into `ALEPH_DEV_IDENTITY=1` and
+  file-backed grants in `apps/mcp-server/.aleph-dev/device-grants.json`. MCP access tokens cannot
+  dial `/device`; device ABTs cannot call `/mcp`.
 
-- signs and verifies the **same wire format** the extracted connector already presents — a compact
-  HMAC token, header `{"alg":"HS256","typ":"ABT"}`, key `${JWT_SECRET}:autocad-bridge-token` (the
-  suffix is load-bearing: signing with the bare secret yields `invalid_token:signature`);
-- enforces the **same grant rules** the production table does: first-claim ownership, deny a caller
-  that merely knows a `deviceId`, and a `grantGeneration` that moves on revoke so a minted token
-  stops authorizing. `src/dev/bridgeToken.test.ts` pins all of that;
-- persists grants in `apps/mcp-server/.arcdio-dev/device-grants.json` — **gitignored**, dev-only, never
-  a production store. The path is derived from the module location (not the process cwd) so the
-  minter and the server always read the same file; `ARCDIO_DEV_GRANT_FILE` overrides it explicitly.
-
-Without `ARCDIO_DEV_IDENTITY=1` the server keeps deny-all identity, so the lane cannot widen the real
-trust boundary by accident. `bun run mint:dev-credential` is the same mint step standalone.
+`bun run mint:dev-credential` mints the **device** credential only (dev lane).
+`bun run oauth:access-token` obtains an MCP OAuth access_token for the live lane (PKCE via
+`/oauth/dev/code`, only when `ALEPH_DEV_IDENTITY=1`). For the interactive portal path, run
+`apps/portal` with matching `JWT_SECRET` / `PORTAL_APPROVE_SECRET` / `DATABASE_URL`.
 
 ## Safety properties kept from the harness
 

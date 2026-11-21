@@ -1,5 +1,5 @@
 import * as z from 'zod/v4'
-import type { EntityRef } from '@arcdio/cad-types'
+import type { EntityRef } from '@aleph-connector/cad-types'
 
 /**
  * Result-size controls (#72). A model reads every byte a tool returns, so large batches and lists

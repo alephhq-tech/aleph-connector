@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { createEntityParams, entityTransformParams } from '@arcdio/cad-tools'
+import { createEntityParams, entityTransformParams } from '@aleph-connector/cad-tools'
 
 // Spot-check (#65): the payload forms references/commands.md lists as supported must validate.
 test('commands.md create payloads validate', () => {

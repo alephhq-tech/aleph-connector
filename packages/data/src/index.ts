@@ -38,7 +38,7 @@ export interface EditApprovalConsumeResult {
   reason?: string
 }
 
-export interface ArcdioDataStore {
+export interface AlephConnectorDataStore {
   cadDocuments: {
     findByFingerprint(workspaceId: string, fingerprint: string): Promise<CadDocumentRecord | null>
     findBySession(workspaceId: string, sessionId: string): Promise<CadDocumentRecord[]>
@@ -80,7 +80,7 @@ interface EditApprovalRow {
  * document/snapshot lookups a standalone local host has nothing to index. `configureDataStore`
  * swaps this out for the PostgreSQL adapter when `DATABASE_URL` is a postgres:// connection.
  */
-export class InMemoryDataStore implements ArcdioDataStore {
+export class InMemoryDataStore implements AlephConnectorDataStore {
   private readonly approvals = new Map<string, EditApprovalRow>()
   private readonly catalog = new Map<string, CadSymbolCatalogItem>()
 
@@ -184,13 +184,13 @@ export class InMemoryDataStore implements ArcdioDataStore {
   }
 }
 
-let store: ArcdioDataStore = new InMemoryDataStore()
+let store: AlephConnectorDataStore = new InMemoryDataStore()
 
-export function configureDataStore(next: ArcdioDataStore): void {
+export function configureDataStore(next: AlephConnectorDataStore): void {
   store = next
 }
 
-export const db: ArcdioDataStore = {
+export const db: AlephConnectorDataStore = {
   cadDocuments: {
     findByFingerprint: (...args) => store.cadDocuments.findByFingerprint(...args),
     findBySession: (...args) => store.cadDocuments.findBySession(...args)

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import type { DeviceExecutionRequest, DeviceGateway } from '@arcdio/device-contracts'
+import type { DeviceExecutionRequest, DeviceGateway } from '@aleph-connector/device-contracts'
 import { DeviceGatewayBridgeClient } from './DeviceGatewayBridgeClient.js'
 
 /**

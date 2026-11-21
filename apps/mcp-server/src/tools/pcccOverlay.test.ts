@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { db } from '@arcdio/data'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
+import { db } from '@aleph-connector/data'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
 import type { BridgeClient, BridgeRequestOptions } from '../bridge/BridgeClient.js'
 import { MockBridgeClient } from '../bridge/MockBridgeClient.js'
 import { registerPcccOverlayTools, pcccOverlayInputSchema } from './pcccOverlay.js'
@@ -133,7 +133,7 @@ let catalogSeq = 0
 /** Seed a catalog entry for the workspace (approved unless overridden). */
 async function seedCatalogEntry(
   workspaceId: string,
-  overrides: Partial<import('@arcdio/data').CadSymbolCatalogItem> = {}
+  overrides: Partial<import('@aleph-connector/data').CadSymbolCatalogItem> = {}
 ): Promise<void> {
   const now = Date.now()
   await db.cadSymbolCatalog.insert({

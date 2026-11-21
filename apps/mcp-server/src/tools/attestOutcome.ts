@@ -3,8 +3,8 @@ import {
   OUTCOME_META_KEY,
   type ToolCommitReceipt,
   type ToolExecutionOutcomeState
-} from '@arcdio/operation-protocol'
-import type { OperationsApplyResult } from '@arcdio/cad-protocol'
+} from '@aleph-connector/operation-protocol'
+import type { OperationsApplyResult } from '@aleph-connector/cad-protocol'
 
 /**
  * Server-side attestation of what a batch mutation ACTUALLY did (issue #388 §C).

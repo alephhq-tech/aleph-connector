@@ -19,7 +19,7 @@ import {
   createEntityParams,
   entityOperation,
   entityTransformParams
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 
 /** Every tool in this server replies with a single text block (see textResult.ts). */
 function textOf(result: CallToolResult): string {

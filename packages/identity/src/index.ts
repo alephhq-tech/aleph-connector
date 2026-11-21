@@ -1,78 +1,44 @@
-export type DeviceCredentialRejectReason =
-  | 'expired'
-  | 'grant_stale'
-  | 'grant_denied'
-  | 'signature'
-  | 'malformed'
+export {
+  configureIdentity,
+  deviceCredentialService,
+  listDeviceGrantsForCaller,
+  resolveDeviceIdForCaller,
+  validateDeviceGrant,
+  type DeviceCredentialPayload,
+  type DeviceCredentialRejectReason,
+  type DeviceCredentialService,
+  type DeviceCredentialVerification,
+  type DeviceGrantRecord,
+  type DeviceGrantStore
+} from './device.js'
 
-export interface DeviceCredentialPayload {
-  deviceId: string
-  userId: string
-  workspaceId: string
-  grantGeneration: number
-  exp: number
-}
+export {
+  AbtTokenService,
+  parseAbtWirePayload,
+  type AbtMintResult,
+  type AbtWirePayload
+} from './abt.js'
 
-export type DeviceCredentialVerification =
-  | { ok: true; payload: DeviceCredentialPayload }
-  | { ok: false; reason: DeviceCredentialRejectReason }
+export {
+  GrantDeniedError,
+  MemoryDeviceGrantStore,
+  PostgresDeviceGrantStore,
+  type MutableDeviceGrantStore,
+  type SqlExecutor
+} from './grants.js'
 
-export interface DeviceCredentialService {
-  verify(token: string): Promise<DeviceCredentialPayload | null>
-  verifyDetailed(token: string): Promise<DeviceCredentialVerification>
-}
+export {
+  DEFAULT_MCP_SCOPES,
+  MCP_SCOPES,
+  parseScopeString,
+  scopeString,
+  type McpScope
+} from './scopes.js'
 
-export interface DeviceGrantStore {
-  validate(
-    deviceId: string,
-    workspaceId: string,
-    userId: string,
-    expectedGeneration?: number
-  ): Promise<boolean>
-}
-
-class UnconfiguredDeviceCredentialService implements DeviceCredentialService {
-  async verify(_token: string): Promise<DeviceCredentialPayload | null> {
-    return null
-  }
-
-  async verifyDetailed(_token: string): Promise<DeviceCredentialVerification> {
-    return { ok: false, reason: 'signature' }
-  }
-}
-
-class DenyAllDeviceGrantStore implements DeviceGrantStore {
-  async validate(
-    _deviceId: string,
-    _workspaceId: string,
-    _userId: string,
-    _expectedGeneration?: number
-  ): Promise<boolean> {
-    return false
-  }
-}
-
-let credentialService: DeviceCredentialService = new UnconfiguredDeviceCredentialService()
-let grantStore: DeviceGrantStore = new DenyAllDeviceGrantStore()
-
-export function configureIdentity(services: {
-  credentialService: DeviceCredentialService
-  grantStore: DeviceGrantStore
-}): void {
-  credentialService = services.credentialService
-  grantStore = services.grantStore
-}
-
-export const deviceCredentialService: DeviceCredentialService = {
-  verify: (token) => credentialService.verify(token),
-  verifyDetailed: (token) => credentialService.verifyDetailed(token)
-}
-
-export function validateDeviceGrant(
-  deviceId: string,
-  workspaceId: string,
-  userId: string,
-  expectedGeneration?: number
-): Promise<boolean> {
-  return grantStore.validate(deviceId, workspaceId, userId, expectedGeneration)
-}
+export {
+  McpOAuthAuthorizationServer,
+  type McpOAuthServerConfig,
+  type OAuthMetadataDocument
+} from './mcp-oauth/server.js'
+export { MemoryMcpOAuthStore, type McpOAuthStore, type RegisteredClient } from './mcp-oauth/store.js'
+export { McpJwtService, type McpAccessTokenClaims } from './mcp-oauth/jwt.js'

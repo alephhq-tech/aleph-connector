@@ -1,10 +1,10 @@
-# ARCDIO target architecture
+# Aleph Connector target architecture
 
 ## Decision
 
-ARCDIO is a private-source, cloud-managed, BYOAI product published through `alephhq.tech`. The product name does not require a separate public domain.
+Aleph Connector is a private-source, cloud-managed, BYOAI product published through `alephhq.tech`. The product name does not require a separate public domain.
 
-ARCDIO is not an agent engine. User-owned agents perform language understanding and planning. ARCDIO supplies authenticated CAD evidence, deterministic engineering computation, validated operations, execution, and receipts.
+Aleph Connector is not an agent engine. User-owned agents perform language understanding and planning. Aleph Connector supplies authenticated CAD evidence, deterministic engineering computation, validated operations, execution, and receipts.
 
 ## Runtime boundary
 
@@ -47,7 +47,7 @@ MCP client and device identities are different principals.
 
 ## Stateless MCP handles
 
-Protocol-level MCP sessions are not product state. ARCDIO issues explicit, expiring, owner-bound handles:
+Protocol-level MCP sessions are not product state. Aleph Connector issues explicit, expiring, owner-bound handles:
 
 - `documentRef`: user, device, instance, document identity, layout, revision, expiry
 - `planId`: validated preview, source revision, operation digest, policy result, expiry

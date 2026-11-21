@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import type { EntityDetail, EntityKind } from '@arcdio/cad-types'
-import { RESTORE_VERDICT_VALUES, type RpcMethodName } from '@arcdio/cad-protocol'
-import type { EntityPreImage, Restorability } from '@arcdio/cad-protocol'
+import type { EntityDetail, EntityKind } from '@aleph-connector/cad-types'
+import { RESTORE_VERDICT_VALUES, type RpcMethodName } from '@aleph-connector/cad-protocol'
+import type { EntityPreImage, Restorability } from '@aleph-connector/cad-protocol'
 import { registerEditTools } from './edit.js'
-import { db, hashApprovalToken } from '@arcdio/data'
+import { db, hashApprovalToken } from '@aleph-connector/data'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import {
   createEntityParams,
@@ -13,7 +13,7 @@ import {
   editPreviewParams,
   editDiscardParams,
   editAcceptParams
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 
 /**
  * The TypeScript half of the PR B slice 01 restorability contract.

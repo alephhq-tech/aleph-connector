@@ -1,7 +1,7 @@
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { ViewCaptureParams } from '@arcdio/cad-protocol'
-import { COMMIT_EVIDENCE_META_KEY } from '@arcdio/operation-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { ViewCaptureParams } from '@aleph-connector/cad-protocol'
+import { COMMIT_EVIDENCE_META_KEY } from '@aleph-connector/operation-protocol'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { imageResult, textResult } from './textResult.js'
 

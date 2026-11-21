@@ -4,9 +4,9 @@ import {
   createEntityParams,
   entityOperation,
   entityTransformParams
-} from '@arcdio/cad-tools'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { RpcMethodName, RpcMethodMap } from '@arcdio/cad-protocol'
+} from '@aleph-connector/cad-tools'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { RpcMethodName, RpcMethodMap } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from '../bridge/MockBridgeClient.js'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import {

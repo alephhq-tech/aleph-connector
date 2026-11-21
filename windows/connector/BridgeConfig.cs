@@ -38,7 +38,7 @@ namespace CadAi.Bridge
         /// <summary>The Bridge's own version, reported in `hello.bridgeVersion`. One number covers the
         /// Bridge+plugin unified release train (see bridge/README.md), so it MUST equal the plugin's
         /// release version; `BridgeVersionTests` pins it to the installer bundle templates.</summary>
-        public const string BridgeVersion = "0.3.0";
+        public const string BridgeVersion = "0.1.0";
         public static LocalBridgeConfigFile? LoadConfigFile()
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;

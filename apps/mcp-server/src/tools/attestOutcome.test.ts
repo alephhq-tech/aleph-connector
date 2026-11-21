@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { OperationsApplyResult } from '@arcdio/cad-protocol'
+import type { OperationsApplyResult } from '@aleph-connector/cad-protocol'
 import { attestBatchOutcome, outcomeMeta } from './attestOutcome.js'
 
 /**
@@ -91,15 +91,15 @@ describe('attestBatchOutcome', () => {
 
 describe('outcomeMeta', () => {
   test('omits the evidence key when there is none', () => {
-    expect(outcomeMeta({ outcomeState: 'failed' })).toEqual({ 'arcdio.io/outcome': 'failed' })
+    expect(outcomeMeta({ outcomeState: 'failed' })).toEqual({ 'aleph.io/outcome': 'failed' })
   })
 
   test('carries state and evidence side by side', () => {
     expect(
       outcomeMeta({ outcomeState: 'cancelled', commitReceipt: { commitIds: ['b_1'] } })
     ).toEqual({
-      'arcdio.io/outcome': 'cancelled',
-      'arcdio.io/commit': { commitIds: ['b_1'] }
+      'aleph.io/outcome': 'cancelled',
+      'aleph.io/commit': { commitIds: ['b_1'] }
     })
   })
 })

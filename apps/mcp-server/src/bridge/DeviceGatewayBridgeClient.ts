@@ -1,6 +1,6 @@
-import { BridgeRpcError } from '@arcdio/cad-protocol'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
-import type { DeviceGateway } from '@arcdio/device-contracts'
+import { BridgeRpcError } from '@aleph-connector/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
+import type { DeviceGateway } from '@aleph-connector/device-contracts'
 import type { BridgeClient, BridgeRequestOptions } from './BridgeClient.js'
 
 /**

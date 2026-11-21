@@ -1,4 +1,4 @@
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
 import type { BridgeClient, BridgeRequestOptions } from '../bridge/BridgeClient.js'
 
 /**

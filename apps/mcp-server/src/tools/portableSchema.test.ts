@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import * as z from 'zod/v4'
 import { portableInputSchema } from './portableSchema.js'
 import { captureSize } from './capture.js'
-import { viewZoomParams } from '@arcdio/cad-tools'
+import { viewZoomParams } from '@aleph-connector/cad-tools'
 
 function flatten(schema: z.ZodType): unknown {
   return portableInputSchema(schema)['~standard'].jsonSchema.input({ target: 'draft-07' })

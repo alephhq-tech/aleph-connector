@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ApplicationPackage SchemaVersion="1.0"
-                     AppVersion="0.3.0"
+                     AppVersion="0.1.0"
                      ProductCode="{761EAEA2-45B1-4ED2-A2DA-73F5B3114762}"
                      UpgradeCode="{4D075A09-49BB-461C-9925-9732C4D8B70B}"
                      Name="CadAI"

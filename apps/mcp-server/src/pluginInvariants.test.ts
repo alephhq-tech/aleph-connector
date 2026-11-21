@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
-import { BridgeErrorCode } from '@arcdio/cad-protocol'
+import { BridgeErrorCode } from '@aleph-connector/cad-protocol'
 /**
  * No RPC handler may switch the user's tab as a side effect (#68): `drawing.activate` (#30) is
  * meant to be the only way. A grep-level guard, since the plugin can't run outside AutoCAD.

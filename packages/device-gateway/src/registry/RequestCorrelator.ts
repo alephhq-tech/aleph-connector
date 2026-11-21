@@ -1,4 +1,4 @@
-import type { CapabilityResultMessage } from '@arcdio/cad-protocol'
+import type { CapabilityResultMessage } from '@aleph-connector/cad-protocol'
 
 /**
  * Tracks in-flight `capability.execute` calls by requestId so out-of-order `capability.result`

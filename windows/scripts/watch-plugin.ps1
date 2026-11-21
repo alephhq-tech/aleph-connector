@@ -28,7 +28,7 @@
          net8.0-windows/net10.0-windows, "close and reopen AutoCAD" for net48.
 
 .EXAMPLE
-    # Terminal: ARCDIO/windows
+    # Terminal: Aleph Connector/windows
     .\scripts\watch-plugin.ps1
 #>
 param()

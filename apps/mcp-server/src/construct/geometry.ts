@@ -1,4 +1,4 @@
-import { BridgeErrorCode, BridgeRpcError } from '@arcdio/cad-protocol'
+import { BridgeErrorCode, BridgeRpcError } from '@aleph-connector/cad-protocol'
 
 /** Plain 2D geometry for the construct generators — pure functions, no AutoCAD. */
 

@@ -1,5 +1,5 @@
 {
-  "name": "@arcdio/operation-protocol",
+  "name": "@aleph-connector/operation-protocol",
   "private": true,
   "version": "0.1.0",
   "type": "module",

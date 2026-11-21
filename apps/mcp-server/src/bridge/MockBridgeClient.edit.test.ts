@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { BridgeErrorCode, BridgeRpcError, RpcMethod } from '@arcdio/cad-protocol'
+import { BridgeErrorCode, BridgeRpcError, RpcMethod } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from './MockBridgeClient.js'
 
 describe('MockBridgeClient edit.begin (PR B Slice 02)', () => {

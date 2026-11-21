@@ -1,5 +1,5 @@
 {
-  "name": "@arcdio/device-gateway",
+  "name": "@aleph-connector/device-gateway",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,11 +12,11 @@
     "smoke": "bun run src/smoke.ts"
   },
   "dependencies": {
-    "@arcdio/observability": "workspace:*",
-    "@arcdio/config": "workspace:*",
-    "@arcdio/identity": "workspace:*",
-    "@arcdio/device-contracts": "workspace:*",
-    "@arcdio/cad-protocol": "workspace:*"
+    "@aleph-connector/observability": "workspace:*",
+    "@aleph-connector/config": "workspace:*",
+    "@aleph-connector/identity": "workspace:*",
+    "@aleph-connector/device-contracts": "workspace:*",
+    "@aleph-connector/cad-protocol": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

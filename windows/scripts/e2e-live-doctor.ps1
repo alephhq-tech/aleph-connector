@@ -41,7 +41,7 @@ function Step($label, $ok, $detail, $fix) {
   }
 }
 
-Write-Host '=== ARCDIO live E2E doctor ===' -ForegroundColor Cyan
+Write-Host '=== Aleph Connector live E2E doctor ===' -ForegroundColor Cyan
 Write-Host "repo: $repoRoot"
 
 Write-Host ''
@@ -140,7 +140,7 @@ if (Test-Path $healthPath) {
   }
   if ($ExpectOnline -and -not ($health.pluginLoaded -and $health.ipcConnected -and $health.bridgeOnline)) {
     Step 'stack online (health.json)' $false "pluginLoaded=$($health.pluginLoaded) ipc=$($health.ipcConnected) online=$($health.bridgeOnline)" `
-      'start the server with ARCDIO_DEV_IDENTITY=1, mint a credential, then restart the Bridge task'
+      'start the server with ALEPH_DEV_IDENTITY=1, mint a credential, then restart the Bridge task'
   }
 } else {
   $notes += 'health.json not readable (the Bridge has never started?).'
@@ -154,9 +154,9 @@ if (Test-Path $envFile) {
   $hasJwt = @(Select-String -Path $envFile -Pattern '^JWT_SECRET=\S').Count -gt 0
   Step 'JWT_SECRET set (value not printed)' $hasJwt '' "add JWT_SECRET=... to $envFile (16+ chars)"
 }
-$devFlag = $env:ARCDIO_DEV_IDENTITY
-Step 'ARCDIO_DEV_IDENTITY in the process env' ($devFlag -eq '1') $(if ($devFlag) { $devFlag } else { 'unset' }) `
-  'bun run e2e:live sets it; for a manual server start set ARCDIO_DEV_IDENTITY=1 first'
+$devFlag = $env:ALEPH_DEV_IDENTITY
+Step 'ALEPH_DEV_IDENTITY in the process env' ($devFlag -eq '1') $(if ($devFlag) { $devFlag } else { 'unset' }) `
+  'bun run e2e:live sets it; for a manual server start set ALEPH_DEV_IDENTITY=1 first'
 
 Write-Host ''
 foreach ($n in $notes) { Write-Host "  note: $n" -ForegroundColor DarkGray }

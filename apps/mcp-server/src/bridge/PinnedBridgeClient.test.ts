@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
-import type { OpenDocumentInfo } from '@arcdio/cad-types'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
+import type { OpenDocumentInfo } from '@aleph-connector/cad-types'
 import {
   DocumentPin,
   PinnedBridgeClient,

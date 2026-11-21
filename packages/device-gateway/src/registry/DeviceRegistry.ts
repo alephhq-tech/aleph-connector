@@ -1,5 +1,5 @@
 import type { ServerWebSocket } from 'bun'
-import type { Capabilities } from '@arcdio/cad-protocol'
+import type { Capabilities } from '@aleph-connector/cad-protocol'
 
 export interface DeviceSocketData {
   deviceId: string

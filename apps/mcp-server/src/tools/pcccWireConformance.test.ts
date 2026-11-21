@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { entityOperation } from '@arcdio/cad-tools'
-import { planHighwayFireAlarm, resolvePcccBlocks } from '@arcdio/engineering'
-import type { FireAlarmRoomInput } from '@arcdio/engineering'
+import { entityOperation } from '@aleph-connector/cad-tools'
+import { planHighwayFireAlarm, resolvePcccBlocks } from '@aleph-connector/engineering'
+import type { FireAlarmRoomInput } from '@aleph-connector/engineering'
 
 /**
  * The PCCC planners build their `cadOperations` as loose records, so the compiler cannot see a kind

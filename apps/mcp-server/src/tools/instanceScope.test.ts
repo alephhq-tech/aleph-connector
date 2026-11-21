@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
 import type { BridgeClient, BridgeRequestOptions } from '../bridge/BridgeClient.js'
 import { withInstance } from './instanceScope.js'
 

@@ -10,12 +10,12 @@ import type {
   LayerInfo,
   OpenDocumentInfo,
   Point3d
-} from '@arcdio/cad-types'
+} from '@aleph-connector/cad-types'
 
 /**
  * Local IPC method catalog: the JSON-RPC contract between bridge (C#, routes by instanceId) and
  * plugin (C#, runs inside AutoCAD) over the named pipe. The Remote MCP Server never calls these
- * directly — it builds a `CapabilityOperation` (see @arcdio/cad-protocol's device/ layer) with
+ * directly — it builds a `CapabilityOperation` (see @aleph-connector/cad-protocol's device/ layer) with
  * `type` set to one of these method names, and the Device Gateway/Bridge relay it unchanged. Must
  * match plugin's RpcHandlers routing. See docs/PROTOCOL.md.
  */

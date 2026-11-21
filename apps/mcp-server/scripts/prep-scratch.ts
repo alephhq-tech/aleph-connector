@@ -79,7 +79,7 @@ async function main(): Promise<void> {
   const scratchName = process.env.CADAI_E2E_SCRATCH_NAME ?? 'CADAI-E2E-SCRATCH.dwg'
   const closeMode = process.argv.slice(2).includes('--close')
   if (!token.trim()) {
-    throw new Error('CADAI_E2E_TOKEN is required (mint it with scripts/mint-dev-credential.ts)')
+    throw new Error('CADAI_E2E_TOKEN is required (OAuth access_token from scripts/oauth-access-token.ts)')
   }
   let url: URL
   try {
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   const transport = new StreamableHTTPClientTransport(url, {
     requestInit: { headers: { Authorization: `Bearer ${token}` } }
   })
-  const client = new Client({ name: 'arcdio-prep-scratch', version: '0.1.0' })
+  const client = new Client({ name: 'aleph-prep-scratch', version: '0.1.0' })
   await client.connect(transport)
   try {
     const documents = documentsOf(await callTool(client, 'drawing', { operation: 'list_open' }))
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
       return
     }
 
-    const scratchDir = join(tmpdir(), `arcdio-e2e-${Date.now()}`)
+    const scratchDir = join(tmpdir(), `aleph-e2e-${Date.now()}`)
     mkdirSync(scratchDir, { recursive: true })
     const target = win32.join(scratchDir, scratchName)
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from '../bridge/MockBridgeClient.js'
 import { DocumentPin } from '../bridge/PinnedBridgeClient.js'
 import type { BridgeClient, BridgeRequestOptions } from '../bridge/BridgeClient.js'

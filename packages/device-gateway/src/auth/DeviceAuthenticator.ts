@@ -1,4 +1,4 @@
-import { deviceCredentialService, validateDeviceGrant } from '@arcdio/identity'
+import { deviceCredentialService, validateDeviceGrant } from '@aleph-connector/identity'
 
 export interface DeviceAuthenticator {
   authenticate(deviceId: string, token: string): Promise<string | null>

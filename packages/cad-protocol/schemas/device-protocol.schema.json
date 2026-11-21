@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://alephhq.tech/arcdio/schemas/device-protocol.schema.json",
+  "$id": "https://alephhq.tech/aleph-connector/schemas/device-protocol.schema.json",
   "title": "DeviceMessage",
   "description": "Canonical WSS Device Protocol contract between the TypeScript Device Gateway and the Windows Connector. The TypeScript and C# mirrors are hand-maintained because the current oneOf union is not generated correctly by the evaluated generators. Fixtures plus TypeScript AJV validation and C# deserialization tests enforce parity; update the schema, both mirrors, and fixtures in one change.",
   "$defs": {

@@ -1,4 +1,4 @@
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
 
 /**
  * Per-call options every {@link BridgeClient} implementation accepts (#9). `signal`, when given and

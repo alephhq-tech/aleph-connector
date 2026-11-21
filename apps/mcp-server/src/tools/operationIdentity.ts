@@ -1,4 +1,4 @@
-import { OPERATION_META_KEY } from '@arcdio/operation-protocol'
+import { OPERATION_META_KEY } from '@aleph-connector/operation-protocol'
 
 /** The shape `McpServer`'s v2 handler context carries for the request being handled. Only `id`
  * and `_meta` are read here; the SDK types them loosely and every other field is irrelevant. */

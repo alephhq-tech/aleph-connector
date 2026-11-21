@@ -21,7 +21,7 @@ import type {
   EditDiffResult,
   StateConflict,
   BoundaryLoop
-} from '@arcdio/cad-protocol'
+} from '@aleph-connector/cad-protocol'
 import {
   MAX_ARRAY_COPIES,
   sampleByCount,
@@ -30,13 +30,13 @@ import {
   segmentsFromLine,
   segmentsFromPoints,
   segmentsFromPolyline
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 import {
   BridgeErrorCode,
   BridgeRpcError,
   DRAWING_CHECK_KINDS,
   RpcMethod
-} from '@arcdio/cad-protocol'
+} from '@aleph-connector/cad-protocol'
 import type {
   ColorSpec,
   EntityCommonProperties,
@@ -46,12 +46,12 @@ import type {
   Point3d,
   PolylineVertex,
   EntityRef
-} from '@arcdio/cad-types'
+} from '@aleph-connector/cad-types'
 import { randomUUID } from 'node:crypto'
 import { win32 as winPath } from 'node:path'
 // Same canonicalization the design guard binds its validation records to, and the same one the C#
 // plugin's `IdempotencyCache` mirrors — so "same parameters" has exactly one definition.
-import { hashCanonical } from '@arcdio/engineering'
+import { hashCanonical } from '@aleph-connector/engineering'
 import type { BridgeClient, BridgeRequestOptions } from './BridgeClient.js'
 
 /**
@@ -4544,7 +4544,7 @@ export class MockBridgeClient implements BridgeClient {
   }
   /**
    * Resolves `arrayPath`'s `count`/`spacing` into a copy-per-source count via the same pure
-   * arc-length math `@arcdio/cad-tools`'s `arrayPath` module unit-tests directly — real math,
+   * arc-length math `@aleph-connector/cad-tools`'s `arrayPath` module unit-tests directly — real math,
    * not a stub, since it has no AutoCAD dependency either. Unlike arrayRect/arrayPolar (capped
    * pre-wire in `server/src/tools/normalize.ts`'s `arrayCopyCount` check), a `path: { handle }`'s
    * length is only known once resolved against the drawing, so that case's cap is enforced here

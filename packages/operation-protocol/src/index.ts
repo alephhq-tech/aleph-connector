@@ -13,6 +13,6 @@ export interface ToolCommitReceipt {
   visualEvidence?: 'captured' | 'unavailable'
 }
 
-export const OUTCOME_META_KEY = 'arcdio.io/outcome'
-export const OPERATION_META_KEY = 'arcdio.io/operation'
-export const COMMIT_EVIDENCE_META_KEY = 'arcdio.io/commit'
+export const OUTCOME_META_KEY = 'aleph.io/outcome'
+export const OPERATION_META_KEY = 'aleph.io/operation'
+export const COMMIT_EVIDENCE_META_KEY = 'aleph.io/commit'

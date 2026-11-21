@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from './MockBridgeClient.js'
 
 test('a clean drawing reports no findings', async () => {

@@ -1,10 +1,14 @@
 /**
- * STDIO <-> HTTP Proxy for Claude Desktop and other stdio-only MCP clients.
+ * STDIO proxy for clients that cannot speak Streamable HTTP OAuth yet.
  *
- * Claude Desktop spawns this script via stdio (`bun run stdio-proxy.ts`), and this proxy forwards
- * JSON-RPC messages to the local AutoCAD MCP HTTP server (default http://127.0.0.1:8080/mcp) with
- * the required Authorization bearer header. Provide AUTOCAD_MCP_TOKEN from a
- * signed, authorized Aleph credential; no default/static token is accepted.
+ * Aleph MCP no longer accepts static API / minted ABT tokens as client credentials.
+ * Prefer configuring the client with the HTTP URL only and completing the OAuth browser flow:
+ *
+ *   { "url": "http://127.0.0.1:8080/mcp" }
+ *
+ * This proxy remains only for transitional stdio hosts that can inject an *OAuth access_token*
+ * obtained via authorization_code + PKCE (see scripts/oauth-access-token.ts). Device ABT tokens
+ * are rejected by the MCP resource server.
  */
 import readline from 'node:readline'
 
@@ -12,7 +16,8 @@ const MCP_URL = process.env.AUTOCAD_MCP_URL || 'http://127.0.0.1:8080/mcp'
 const MCP_TOKEN = process.env.AUTOCAD_MCP_TOKEN?.trim()
 if (!MCP_TOKEN) {
   console.error(
-    'AUTOCAD_MCP_TOKEN must be a signed Aleph credential. Sign in through Aleph Desktop and provide a valid token.'
+    'AUTOCAD_MCP_TOKEN must be an OAuth access_token from Aleph Connector (/oauth/authorize + /oauth/token). ' +
+      'Static API tokens are not accepted. Prefer HTTP MCP with OAuth discovery instead of this proxy.'
   )
   process.exit(1)
 }
@@ -33,7 +38,6 @@ rl.on('line', async (line: string) => {
   try {
     parsed = JSON.parse(trimmed)
   } catch {
-    // Malformed JSON on stdin
     return
   }
 
@@ -67,7 +71,6 @@ rl.on('line', async (line: string) => {
     }
 
     const text = await res.text()
-    // Parse SSE payload: "event: message\ndata: {json}\n\n"
     const sseBlocks = text.split('\n\n')
     for (const block of sseBlocks) {
       const dataLines: string[] = []
@@ -84,7 +87,6 @@ rl.on('line', async (line: string) => {
           process.stdout.write(fullData + '\n')
         }
       } else {
-        // Plain JSON response
         const candidate = block.trim()
         if (candidate.startsWith('{') && candidate.endsWith('}')) {
           process.stdout.write(candidate + '\n')
@@ -98,8 +100,8 @@ rl.on('line', async (line: string) => {
         jsonrpc: '2.0',
         id: msgId,
         error: {
-          code: -32603,
-          message: `AutoCAD MCP Proxy Error: ${message}. Is 'bun run autocad:dev' running at ${MCP_URL}?`
+          code: -32000,
+          message
         }
       }
       process.stdout.write(JSON.stringify(errorResponse) + '\n')

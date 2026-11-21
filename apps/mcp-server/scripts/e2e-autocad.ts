@@ -27,8 +27,8 @@ import {
   StreamableHTTPClientTransport
 } from '@modelcontextprotocol/client'
 import type { CallToolResult } from '@modelcontextprotocol/client'
-import { BridgeErrorCode } from '@arcdio/cad-protocol'
-import type { CreateEntityParams, EntityTransformParams } from '@arcdio/cad-protocol'
+import { BridgeErrorCode } from '@aleph-connector/cad-protocol'
+import type { CreateEntityParams, EntityTransformParams } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from '../src/bridge/MockBridgeClient.js'
 import { MockDeviceGateway } from '../src/bridge/MockDeviceGateway.js'
 import { createServer } from '../src/server.js'

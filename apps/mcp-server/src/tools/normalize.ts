@@ -1,18 +1,18 @@
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import type {
   CreateEntityParams,
   EntityOperation,
   EntityTransformParams,
   EntityUpdateParams
-} from '@arcdio/cad-protocol'
+} from '@aleph-connector/cad-protocol'
 import {
   arrayCopyCount,
   canonicalEntity,
   MAX_ARRAY_COPIES,
   type CreateEntityInput,
   type EntityTransformInput
-} from '@arcdio/cad-tools'
+} from '@aleph-connector/cad-tools'
 import { invalidGeometry, type Vec2 } from '../construct/geometry.js'
 import {
   arcStartEndRadius,

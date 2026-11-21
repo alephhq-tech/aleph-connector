@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { idempotencyKey, layerName, point3d, viewOverride } from '@arcdio/cad-tools'
+import { idempotencyKey, layerName, point3d, viewOverride } from '@aleph-connector/cad-tools'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { dimensionChain, grid, room, walls, type ConstructStep } from '../construct/generators.js'
 import { applyBatch } from './applyBatch.js'

@@ -1,12 +1,12 @@
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { EntityOperation, OperationsPreviewResult } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { EntityOperation, OperationsPreviewResult } from '@aleph-connector/cad-protocol'
 import {
   bboxOf,
   pointInPolygon,
   ringsBoundaryIntersect,
   type BBox,
   type Point2D
-} from '@arcdio/engineering'
+} from '@aleph-connector/engineering'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import {
   assembleFloorplanGeometry,

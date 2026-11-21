@@ -1,21 +1,21 @@
-# Aleph Platform → ARCDIO extraction map
+# Aleph Platform → Aleph Connector extraction map
 
 Source checkout: `~/Documents/aleph-platform`. Copy only owned CAD modules; do not copy AgentEngine, Model Gateway, Run Engine, Aleph Desktop UI, or general Aleph account infrastructure.
 
 ## Move together
 
-| ARCDIO target | Aleph source | Treatment |
+| Aleph Connector target | Aleph source | Treatment |
 |---|---|---|
 | `apps/mcp-server` | `aleph-cloud/apps/mcp-autocad` | Extract tool/server implementation; replace auth, database, config, observability, and session pinning |
 | `packages/cad-protocol` | `aleph-cloud/packages/mcp/autocad/wire-protocol` and `cad-types` | Preserve canonical TS contracts and C# generation |
 | `packages/cad-tools` | `aleph-cloud/packages/mcp/autocad/tools` | Preserve validated schemas; normalize public names after extraction |
 | device contracts/router | `aleph-cloud/packages/mcp/autocad/device-contracts`, `device-protocol`, `device-gateway` | Preserve routing and result correlation; replace Aleph grants |
 | `packages/engineering` | selected `aleph-cloud/packages/engineering` | Re-vendor PCCC, spatial, standards, and verification code used by CAD tools only |
-| `packages/cad-state` | selected `aleph-cloud/services/cad-state` | Replace workspace/database assumptions with revision-bound ARCDIO context storage |
+| `packages/cad-state` | selected `aleph-cloud/services/cad-state` | Replace workspace/database assumptions with revision-bound Aleph Connector context storage |
 | `windows/connector` | `aleph-desktop/integrations/autocad/bridge` | Rename product surfaces; replace Desktop token mint/onboarding |
 | `windows/autocad-plugin` | `aleph-desktop/integrations/autocad/plugin` and tests | Preserve typed RPC, main-thread execution, locks, transactions, and rollback |
 | `windows/updater` | `aleph-desktop/integrations/autocad/updater` and tests | Preserve signed update verification |
-| `windows/installer` | `aleph-desktop/integrations/autocad/installer` | Produce ARCDIO-branded bundle and install flow |
+| `windows/installer` | `aleph-desktop/integrations/autocad/installer` | Produce Aleph Connector-branded bundle and install flow |
 | update contracts | `aleph-desktop/integrations/autocad/contracts` | Preserve bundle rules, update channel, and preimage vectors |
 | generated C# | `aleph-desktop/integrations/autocad/generated/csharp` | Regenerate from canonical protocol; never hand-maintain a duplicate schema |
 
@@ -25,13 +25,13 @@ The current MCP app has 92 TypeScript source files and 160 `@aleph/*` import sit
 
 | Dependency | Import sites | Replacement |
 |---|---:|---|
-| `@aleph/identity` | 1 | ARCDIO OAuth verifier, pairing, device credentials, and grant generation |
-| `@aleph/database` | 4 | ARCDIO PostgreSQL repositories |
-| `@aleph/service-cad-state` | 3 | revision-bound ARCDIO CAD context store |
-| `@aleph/protocol` | 6 | minimal ARCDIO operation identity, evidence, capture, and error contracts |
+| `@aleph/identity` | 1 | Aleph OAuth verifier, pairing, device credentials, and grant generation |
+| `@aleph/database` | 4 | Aleph Connector PostgreSQL repositories |
+| `@aleph/service-cad-state` | 3 | revision-bound Aleph Connector CAD context store |
+| `@aleph/protocol` | 6 | minimal Aleph Connector operation identity, evidence, capture, and error contracts |
 | `@aleph/engineering` | 8 | selected private algorithms re-vendored under `packages/engineering` |
-| `@aleph/config` | 1 | ARCDIO environment schema |
-| `@aleph/observability` | 2 | ARCDIO structured logging/tracing with CAD payload redaction |
+| `@aleph/config` | 1 | Aleph Connector environment schema |
+| `@aleph/observability` | 2 | Aleph Connector structured logging/tracing with CAD payload redaction |
 
 ## Preserve; do not redesign
 
@@ -57,7 +57,7 @@ Public tool names may change only after the extracted behavior and contract test
 
 - Canonical protocol builds TypeScript and generated C# consumers.
 - Connector, plugin, updater, and their focused tests build independently from Aleph Desktop.
-- No ARCDIO runtime imports or paths reference Aleph Desktop/Cloud identity.
+- No Aleph Connector runtime imports or paths reference Aleph Desktop/Cloud identity.
 - No raw command, AutoLISP, C# script, shell, mouse, or keyboard execution path exists.
 
 ### Slice B — Cloud CAD runtime extraction

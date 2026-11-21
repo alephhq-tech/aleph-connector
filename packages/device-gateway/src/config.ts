@@ -1,4 +1,4 @@
-import { parsePositiveInt } from '@arcdio/config'
+import { parsePositiveInt } from '@aleph-connector/config'
 
 export interface GatewayConfig {
   /** WSS upgrade path bridges connect to. */

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { BridgeErrorCode, BridgeRpcError } from '@arcdio/cad-protocol'
-import { DeviceGatewayError, GatewayErrorCode } from '@arcdio/device-contracts'
+import { BridgeErrorCode, BridgeRpcError } from '@aleph-connector/cad-protocol'
+import { DeviceGatewayError, GatewayErrorCode } from '@aleph-connector/device-contracts'
 import { describeToolError, toolErrorResult } from './toolError.js'
 
 describe('describeToolError', () => {

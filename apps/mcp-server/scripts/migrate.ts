@@ -1,0 +1,43 @@
+#!/usr/bin/env bun
+/**
+ * Applies the shared Postgres schema (apps/portal/sql/schema.sql) against this app's
+ * DATABASE_URL. Same tables portal uses — users/sessions for the portal app, device_grants
+ * for mcp-server Postgres identity. Idempotent (CREATE IF NOT EXISTS).
+ *
+ *   cd apps/mcp-server && bun run db:migrate
+ *
+ * Equivalent to `cd apps/portal && bun run db:migrate` when both .env files point at the
+ * same database.
+ */
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import postgres from 'postgres'
+
+async function main(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL?.trim()
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL is required — set it in apps/mcp-server/.env')
+  }
+  const schemaPath = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'portal',
+    'sql',
+    'schema.sql'
+  )
+  const sqlText = readFileSync(schemaPath, 'utf8')
+  const client = postgres(databaseUrl, { max: 1 })
+  try {
+    await client.unsafe(sqlText)
+    console.log('applied', schemaPath)
+  } finally {
+    await client.end({ timeout: 5 })
+  }
+}
+
+main().catch((err: unknown) => {
+  console.error(err instanceof Error ? err.message : String(err))
+  process.exitCode = 1
+})

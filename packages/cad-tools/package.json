@@ -1,5 +1,5 @@
 {
-  "name": "@arcdio/cad-tools",
+  "name": "@aleph-connector/cad-tools",
   "version": "0.1.0",
   "private": true,
   "type": "module",

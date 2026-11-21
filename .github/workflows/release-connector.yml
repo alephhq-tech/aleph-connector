@@ -1,0 +1,253 @@
+name: Build and publish Aleph Connector
+
+# Standalone Connector ZIP (Bridge + AutoCAD plugin + AlephConnector.Setup) → MinIO releases/aleph-connector.
+# Mirrors aleph-platform release-desktop.yml (not the Tauri Desktop app workflow).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Connector release version, e.g. 0.2.0 (must match BridgeVersion / current.json).'
+        required: true
+      minimumBridgeVersion:
+        description: 'Oldest Bridge still protocol-compatible with this release.'
+        required: false
+        default: '0.1.0'
+
+env:
+  UPDATE_CHANNEL_CONTRACT: windows/contracts/update-channel.json
+
+jobs:
+  build-sign:
+    runs-on: [self-hosted, windows, x64, aleph-windows-ci]
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      zipPath: ${{ steps.package.outputs.zipPath }}
+      bucket: ${{ steps.channel.outputs.bucket }}
+      prefix: ${{ steps.channel.outputs.prefix }}
+      releaseHost: ${{ steps.channel.outputs.releaseHost }}
+      manifestName: ${{ steps.channel.outputs.manifestName }}
+      publicKeyRepoPath: ${{ steps.channel.outputs.publicKeyRepoPath }}
+    defaults:
+      run:
+        shell: powershell
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Resolve version
+        id: version
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Connector releases require an explicit version through workflow_dispatch."
+          }
+          $minimumBridgeVersion = "${{ github.event.inputs.minimumBridgeVersion }}"
+          if ([string]::IsNullOrWhiteSpace($minimumBridgeVersion)) { $minimumBridgeVersion = "0.1.0" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "minimumBridgeVersion=$minimumBridgeVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Package client (Bridge + plugin + Setup)
+        env:
+          AUTOCAD_NETFX_REF_DIR: ${{ secrets.AUTOCAD_NETFX_REF_DIR_WINDOWS }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AUTOCAD_NETFX_REF_DIR)) {
+            throw "AUTOCAD_NETFX_REF_DIR_WINDOWS secret is required for AutoCAD 2021-2024 packaging."
+          }
+          ./scripts/package-client.ps1 `
+            -Version "${{ steps.version.outputs.version }}" `
+            -AutoCadNetFxRefDir "$env:AUTOCAD_NETFX_REF_DIR" `
+            -RequireAllGenerations `
+            -OutputDir "$env:RUNNER_TEMP/arcdio-client"
+
+      - name: Create release ZIP
+        id: package
+        run: |
+          $zipPath = "release-${{ steps.version.outputs.version }}.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+          $root = (Resolve-Path "$env:RUNNER_TEMP/arcdio-client").Path.TrimEnd('\') + '\'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::Open((Join-Path (Get-Location) $zipPath), 'Create')
+          try {
+            Get-ChildItem -Recurse -File $root | ForEach-Object {
+              $entryName = $_.FullName.Substring($root.Length).Replace('\', '/')
+              [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName)
+            }
+          } finally { $zip.Dispose() }
+          $check = [IO.Compression.ZipFile]::OpenRead((Join-Path (Get-Location) $zipPath))
+          try {
+            foreach ($entry in $check.Entries) {
+              if ($entry.FullName.Contains('\')) { throw "release ZIP entry '$($entry.FullName)' is not '/'-separated." }
+            }
+            foreach ($required in @('bridge/CadAI.Bridge.exe', 'AlephConnector.Setup.exe', 'install.ps1', 'CadAI.bundle/current.json')) {
+              if (-not ($check.Entries | Where-Object { $_.FullName -eq $required })) {
+                throw "release ZIP is missing $required."
+              }
+            }
+            $entryCount = $check.Entries.Count
+          } finally { $check.Dispose() }
+          Write-Host "Created $zipPath ($entryCount entries)"
+          "zipPath=$zipPath" >> $env:GITHUB_OUTPUT
+
+      - name: Read update-channel contract
+        id: channel
+        run: |
+          $contractFile = (Resolve-Path (Join-Path $env:GITHUB_WORKSPACE $env:UPDATE_CHANNEL_CONTRACT)).Path
+          $c = Get-Content $contractFile -Raw | ConvertFrom-Json
+          foreach ($field in 'bucket', 'prefix', 'releaseHost', 'manifestName', 'publicKeyRepoPath') {
+            if ([string]::IsNullOrWhiteSpace([string]$c.$field)) { throw "update-channel contract field '$field' is blank." }
+          }
+          "bucket=$($c.bucket)" >> $env:GITHUB_OUTPUT
+          "prefix=$($c.prefix.Trim('/'))" >> $env:GITHUB_OUTPUT
+          "releaseHost=$($c.releaseHost.TrimEnd('/'))" >> $env:GITHUB_OUTPUT
+          "manifestName=$($c.manifestName.TrimStart('/'))" >> $env:GITHUB_OUTPUT
+          "publicKeyRepoPath=$($c.publicKeyRepoPath)" >> $env:GITHUB_OUTPUT
+
+      - name: Verify key pairing and sign the release package
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:UPDATE_SIGNING_PRIVATE_KEY)) {
+            throw "UPDATE_SIGNING_PRIVATE_KEY secret is required."
+          }
+          $privateKeyPath = Join-Path $env:RUNNER_TEMP "signing-private.pem"
+          Set-Content -Path $privateKeyPath -Value $env:UPDATE_SIGNING_PRIVATE_KEY -NoNewline
+          try {
+            $derived = Join-Path $env:RUNNER_TEMP "derived-public.pem"
+            dotnet run --project updater/Cli -c Release -- pubkey $privateKeyPath $derived
+            if ($LASTEXITCODE -ne 0) { throw "updater pubkey failed" }
+            $shippedPem = (Get-Content (Join-Path (Get-Location) '${{ steps.channel.outputs.publicKeyRepoPath }}') -Raw).Trim()
+            $derivedPem = (Get-Content $derived -Raw).Trim()
+            if ($shippedPem -ne $derivedPem) {
+              throw "Signing secret does not match ${{ steps.channel.outputs.publicKeyRepoPath }}."
+            }
+            $packageUrl = "${{ steps.channel.outputs.releaseHost }}/${{ steps.channel.outputs.prefix }}/${{ steps.package.outputs.zipPath }}"
+            dotnet run --project updater/Cli -c Release -- manifest `
+              "${{ steps.package.outputs.zipPath }}" `
+              $privateKeyPath `
+              "${{ steps.version.outputs.version }}" `
+              "${{ steps.version.outputs.minimumBridgeVersion }}" `
+              $packageUrl `
+              "manifest.json"
+            if ($LASTEXITCODE -ne 0) { throw "updater manifest failed" }
+
+            # Landing-friendly pointer (Tauri-shaped) so aleph-landing-page can list the ZIP.
+            $m = Get-Content manifest.json -Raw | ConvertFrom-Json
+            $latest = @{
+              version = $m.latest
+              notes = "Aleph Connector $($m.latest)"
+              pub_date = (Get-Date).ToUniversalTime().ToString('o')
+              platforms = @{
+                'windows-x86_64' = @{
+                  url = $m.packageUrl
+                  signature = $m.signature
+                }
+              }
+            }
+            ($latest | ConvertTo-Json -Depth 6) | Set-Content -Path latest.json -Encoding utf8
+          } finally {
+            Remove-Item -Path $privateKeyPath -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload signed artifacts for the publish job
+        uses: actions/upload-artifact@v4
+        with:
+          name: aleph-connector-release
+          path: |
+            windows/${{ steps.package.outputs.zipPath }}
+            windows/manifest.json
+            windows/latest.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build-sign
+    runs-on: [self-hosted, linux, x64, aleph-ci]
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_RELEASE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_RELEASE_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+      RELEASE_HOST: ${{ needs.build-sign.outputs.releaseHost }}
+      PREFIX: ${{ needs.build-sign.outputs.prefix }}
+      BUCKET: ${{ needs.build-sign.outputs.bucket }}
+      MANIFEST_NAME: ${{ needs.build-sign.outputs.manifestName }}
+      VERSION: ${{ needs.build-sign.outputs.version }}
+      ZIP_PATH: ${{ needs.build-sign.outputs.zipPath }}
+      PUBLIC_KEY: windows/${{ needs.build-sign.outputs.publicKeyRepoPath }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install .NET 8 toolchain (user-local)
+        run: |
+          set -euo pipefail
+          [ -x "$HOME/.local/dotnet/dotnet" ] || {
+            curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+            bash /tmp/dotnet-install.sh --channel 8.0 --install-dir "$HOME/.local/dotnet"
+            rm -f /tmp/dotnet-install.sh
+          }
+          echo "$HOME/.local/dotnet" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.local/dotnet" >> "$GITHUB_ENV"
+
+      - name: Install aws CLI
+        run: |
+          set -euo pipefail
+          if ! command -v aws >/dev/null; then
+            curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -q -o /tmp/awscliv2.zip -d /tmp
+            /tmp/aws/install --install-dir "$HOME/.local/aws-cli" --bin-dir "$HOME/.local/bin" --update
+            rm -rf /tmp/awscliv2.zip /tmp/aws
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download signed ZIP + manifests
+        uses: actions/download-artifact@v4
+        with:
+          name: aleph-connector-release
+          path: staged
+
+      - name: Refuse to publish over a newer live release
+        run: |
+          set -euo pipefail
+          url="${RELEASE_HOST%/}/${PREFIX}/${MANIFEST_NAME}"
+          live="$(curl -sf "$url" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("latest",""))' || true)"
+          if [ -n "$live" ]; then
+            newest="$(printf '%s\n%s\n' "$live" "$VERSION" | sort -V | tail -1)"
+            if [ "$newest" != "$VERSION" ] || [ "$live" = "$VERSION" ]; then
+              echo "::error::Channel already serves ${live}; refusing ${VERSION}."
+              exit 1
+            fi
+          fi
+
+      - name: Upload release ZIP to MinIO
+        run: |
+          set -euo pipefail
+          [ -n "$MINIO_ENDPOINT" ] || { echo "::error::MINIO_ENDPOINT secret is required." >&2; exit 1; }
+          key="${PREFIX}/${ZIP_PATH}"
+          aws s3 cp "staged/${ZIP_PATH}" "s3://${BUCKET}/${key}" --endpoint-url "$MINIO_ENDPOINT"
+          for check_url in "${MINIO_ENDPOINT%/}/${BUCKET}/${key}" "${RELEASE_HOST%/}/${key}"; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -I "$check_url")
+            if [ "$status" != "200" ]; then
+              echo "::error::Verification failed for $check_url (HTTP $status)"
+              exit 1
+            fi
+          done
+
+      - name: Publish manifest.json and stable/latest.json
+        run: |
+          set -euo pipefail
+          aws s3 cp "staged/manifest.json" "s3://${BUCKET}/${PREFIX}/${MANIFEST_NAME}" --endpoint-url "$MINIO_ENDPOINT"
+          aws s3 cp "staged/latest.json" "s3://${BUCKET}/${PREFIX}/stable/latest.json" --endpoint-url "$MINIO_ENDPOINT"
+          echo "Published Connector ${VERSION} under ${PREFIX}/."
+
+      - name: Verify published release through updater client path
+        working-directory: windows
+        run: |
+          set -euo pipefail
+          dotnet run --project updater/Cli -c Release -- verify "${RELEASE_HOST%/}/${PREFIX}/${MANIFEST_NAME}" --public-key "../${PUBLIC_KEY}"

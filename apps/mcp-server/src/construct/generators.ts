@@ -1,4 +1,4 @@
-import type { CreateEntityParams } from '@arcdio/cad-protocol'
+import type { CreateEntityParams } from '@aleph-connector/cad-protocol'
 import {
   add,
   arcLengths,

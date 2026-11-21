@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
 import {
   DRAWING_INSPECT_TIMEOUT_MS,
   DRAWING_OPEN_TIMEOUT_MS,

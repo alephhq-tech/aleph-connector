@@ -5,11 +5,11 @@
  *   MCP client -> Remote MCP Server (this repo) -> embedded Device Gateway (WSS) -> installed CadAI
  *   connector -> named pipe -> AutoCAD plugin -> real AutoCAD document.
  *
- * Steps, in order: doctor preflight -> start mcp-server with the opt-in dev identity -> mint the dev
- * device credential (connector identity.json + MCP bearer) -> restart the CadAI Bridge task so it
- * dials that credential -> wait for health.json to show pluginLoaded/ipcConnected/bridgeOnline ->
- * prepare the harness's scratch drawing -> run scripts/e2e-autocad.ts against the real stack ->
- * scratch teardown, credential restore, server stop.
+ * Steps, in order: doctor preflight -> start mcp-server with the opt-in device identity tier -> mint
+ * the device credential (connector identity.json only) -> OAuth authorization_code+PKCE for the MCP
+ * client -> restart the CadAI Bridge task so it dials that credential -> wait for health.json to show
+ * pluginLoaded/ipcConnected/bridgeOnline -> prepare the harness's scratch drawing -> run
+ * scripts/e2e-autocad.ts against the real stack -> scratch teardown, credential restore, server stop.
  *
  * Fail-closed throughout: a missing prerequisite aborts before the machine is touched, and the
  * harness itself refuses to run unless the ACTIVE AutoCAD document is its own scratch drawing.
@@ -280,13 +280,13 @@ async function main(): Promise<void> {
     )
   }
 
-  step('1/6 doctor preflight')
+  step('1/7 doctor preflight')
   // The lane starts the server with the dev identity tier, so the doctor must see that env too or it
   // reports a false "unset" for a flag this runner always supplies.
   const doctorExit = run(
     'powershell',
     ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repoRoot, 'windows', 'scripts', 'e2e-live-doctor.ps1')],
-    { env: { ...process.env, ARCDIO_DEV_IDENTITY: '1' } }
+    { env: { ...process.env, ALEPH_DEV_IDENTITY: '1' } }
   )
   if (doctorExit !== 0) throw new LaneError('doctor reported missing prerequisites - fix those, then rerun.')
   if (flags.doctorOnly) return
@@ -314,10 +314,10 @@ async function main(): Promise<void> {
     launchAutocad()
   }
 
-  step('2/6 start the mcp-server (dev identity tier)')
+  step('2/7 start the mcp-server (OAuth AS + device identity tier)')
   const server = Bun.spawn(['bun', 'run', 'src/index.ts'], {
     cwd: appDir,
-    env: { ...process.env, ARCDIO_DEV_IDENTITY: '1' },
+    env: { ...process.env, ALEPH_DEV_IDENTITY: '1' },
     stdout: 'pipe',
     stderr: 'pipe'
   })
@@ -369,11 +369,11 @@ async function main(): Promise<void> {
   // or an earlier operator run) is backed up and restored in finally, so the lane never strands a
   // working install.
   const identityPath = connectorIdentityPath()
-  const identityBackup = join(tmpdir(), `arcdio-identity-backup-${Date.now()}.json`)
+  const identityBackup = join(tmpdir(), `aleph-identity-backup-${Date.now()}.json`)
   let identityWasBackedUp = false
 
   try {
-    step('3/6 mint the dev device credential (connector identity.json + MCP bearer)')
+    step('3/7 mint the device credential (Connector identity.json — not an MCP token)')
     if (existsSync(identityPath)) {
       copyFileSync(identityPath, identityBackup)
       identityWasBackedUp = true
@@ -382,7 +382,7 @@ async function main(): Promise<void> {
     const mintRaw = capture(
       'bun',
       ['run', 'scripts/mint-dev-credential.ts', '--workspace-id', WORKSPACE_ID, '--user-id', USER_ID],
-      { cwd: appDir, env: { ...process.env, ARCDIO_DEV_IDENTITY: '1' } }
+      { cwd: appDir, env: { ...process.env, ALEPH_DEV_IDENTITY: '1' } }
     )
     let minted: Minted
     try {
@@ -394,7 +394,30 @@ async function main(): Promise<void> {
       `deviceId=${minted.deviceId} grantGeneration=${minted.grantGeneration} expires=${minted.expiresAt}`
     )
 
-    step('4/6 restart the CadAI Bridge task so it dials the fresh credential')
+    step('4/7 obtain MCP OAuth access token (authorization_code + PKCE)')
+    const oauthRaw = capture(
+      'bun',
+      [
+        'run',
+        'scripts/oauth-access-token.ts',
+        '--base-url',
+        `http://127.0.0.1:${port}`,
+        '--workspace-id',
+        WORKSPACE_ID,
+        '--user-id',
+        USER_ID
+      ],
+      { cwd: appDir, env: { ...process.env, ALEPH_DEV_IDENTITY: '1' } }
+    )
+    let oauthToken: string
+    try {
+      oauthToken = (JSON.parse(oauthRaw) as { access_token: string }).access_token
+    } catch {
+      throw new LaneError(`oauth-access-token.ts printed no JSON: ${oauthRaw.slice(0, 200)}`)
+    }
+    if (!oauthToken) throw new LaneError('oauth-access-token.ts returned an empty access_token')
+
+    step('5/7 restart the CadAI Bridge task so it dials the fresh credential')
     await restartBridgeTask()
 
     const settled = await waitForHealth(
@@ -413,25 +436,25 @@ async function main(): Promise<void> {
       `stack online: bridge=${settled.bridgeVersion ?? '?'} plugin=${settled.instances?.[0]?.pluginVersion ?? '?'} recoveryPending=${settled.recoveryPending ?? false}`
     )
 
-    step('5/6 prepare the scratch drawing')
+    step('6/7 prepare the scratch drawing')
     const mcpUrl = process.env.CADAI_E2E_MCP_URL ?? `http://127.0.0.1:${port}/mcp`
     const laneEnv = {
       ...process.env,
       CADAI_E2E_MCP_URL: mcpUrl,
-      CADAI_E2E_TOKEN: minted.token,
+      CADAI_E2E_TOKEN: oauthToken,
       CADAI_E2E_SCRATCH_NAME: flags.scratchName
     }
     const prepExit = run('bun', ['run', 'scripts/prep-scratch.ts'], { cwd: appDir, env: laneEnv })
     if (prepExit !== 0) throw new LaneError('prep-scratch.ts failed - the harness would refuse to run anyway.')
 
-    step('6/6 run the harness against the real stack')
+    step('7/7 run the harness against the real stack')
     const harnessArgs = [
       'run',
       'scripts/e2e-autocad.ts',
       '--mcp-url',
       mcpUrl,
       '--token',
-      minted.token,
+      oauthToken,
       '--scratch-name',
       flags.scratchName,
       '--block-name',

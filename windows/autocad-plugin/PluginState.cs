@@ -16,7 +16,7 @@ namespace CadAI.AutoCAD
         /// <c>CADAISTATUS</c> and <c>system.status</c> reported the wrong version).
         /// Bump together with the <c>-Version</c> passed to build-bundle.ps1/package-client.ps1.
         /// </summary>
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.1.0";
 
         public static readonly Stopwatch Uptime = new Stopwatch();
 

@@ -1,4 +1,4 @@
-import { db, type CadSymbolCatalogItem } from '@arcdio/data'
+import { db, type CadSymbolCatalogItem } from '@aleph-connector/data'
 
 export interface CadSnapshotAccess {
   snapshot: { id: string } | null
@@ -15,7 +15,7 @@ export interface CadStateService {
 
 const unconfiguredCadStateService: CadStateService = {
   async resolveAccess() {
-    throw new Error('ARCDIO CAD state service is not configured.')
+    throw new Error('Aleph Connector CAD state service is not configured.')
   }
 }
 

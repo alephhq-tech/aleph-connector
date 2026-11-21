@@ -1,5 +1,5 @@
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { EntityOperation } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { EntityOperation } from '@aleph-connector/cad-protocol'
 import {
   compileCadPayload,
   findOutOfScopePoint,
@@ -9,7 +9,7 @@ import {
   type PlanReadbackReport,
   type Point2D,
   type SpatialRawEntity
-} from '@arcdio/engineering'
+} from '@aleph-connector/engineering'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 
 /**

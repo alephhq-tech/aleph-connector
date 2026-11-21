@@ -1,4 +1,4 @@
-import type { EntityOperation, EntityRef } from '@arcdio/cad-protocol'
+import type { EntityOperation, EntityRef } from '@aleph-connector/cad-protocol'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { ensureLayers, layersOf } from './normalize.js'
 import { applyOperationsBatch } from './refs.js'

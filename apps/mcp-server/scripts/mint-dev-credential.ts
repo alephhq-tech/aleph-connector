@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Mints a dev-tier ARCDIO device credential into the connector's identity.json and prints the
- * matching MCP bearer token for the e2e harness. Development only — requires JWT_SECRET, exactly the
- * same signing secret the running mcp-server must have, or its gateway rejects the credential as
- * `invalid_token:signature`.
+ * Mints a **device** credential into the connector's identity.json (WSS `/device` only).
+ * MCP clients must use OAuth (`scripts/oauth-access-token.ts` or the browser authorize flow) —
+ * this token is intentionally not accepted on `/mcp`.
+ *
+ * Development only — requires JWT_SECRET matching the running mcp-server, or the gateway rejects
+ * the credential as `invalid_token:signature`.
  *
  *   bun run apps/mcp-server/scripts/mint-dev-credential.ts --workspace-id ws-e2e --user-id user-e2e
  *
@@ -83,7 +85,7 @@ function readIdentity(path: string): PersistedIdentity | null {
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const jwtSecret = process.env.JWT_SECRET?.trim()
   if (!jwtSecret) {
     console.error('JWT_SECRET is required — it must match the secret the running mcp-server signs with.')
@@ -92,7 +94,7 @@ function main(): void {
   }
 
   const opts = parseArgs(process.argv.slice(2))
-  // Same resolved path the mcp-server uses (module-derived, or ARCDIO_DEV_GRANT_FILE): a grant file
+  // Same resolved path the mcp-server uses (module-derived, or ALEPH_DEV_GRANT_FILE): a grant file
   // the server cannot see is indistinguishable from an invalid signature at the WSS upgrade.
   const grantFile = devGrantFile(process.env)
   const grants = new JsonFileGrantStore(grantFile)
@@ -101,7 +103,7 @@ function main(): void {
   const existing = readIdentity(opts.identityPath)
   const deviceId = opts.deviceId ?? existing?.deviceId ?? `device_${randomUUID().replace(/-/g, '')}`
 
-  const minted = tokens.mint(
+  const minted = await tokens.mint(
     { deviceId, userId: opts.userId, workspaceId: opts.workspaceId },
     opts.ttlSeconds
   )
@@ -124,8 +126,7 @@ function main(): void {
         expiresAt: new Date(minted.expiresAt * 1000).toISOString(),
         identityPath: opts.identityPath,
         grantFile,
-        // Same credential the connector dials /device with, and the bearer the harness sends to /mcp:
-        // one dev principal, one device, one grant, checked twice (handshake + per dispatch).
+        // Device credential only — dial `/device`. MCP uses a separate OAuth access_token.
         token: minted.token
       },
       null,
@@ -134,4 +135,7 @@ function main(): void {
   )
 }
 
-main()
+main().catch((err: unknown) => {
+  console.error(err instanceof Error ? err.message : String(err))
+  process.exitCode = 1
+})

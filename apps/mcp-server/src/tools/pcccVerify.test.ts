@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { EntityOperation } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { EntityOperation } from '@aleph-connector/cad-protocol'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { MockBridgeClient } from '../bridge/MockBridgeClient.js'
 import {

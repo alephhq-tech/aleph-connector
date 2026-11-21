@@ -1,17 +1,23 @@
-import type { DeviceSocketData } from '@arcdio/device-gateway'
-import { createLogger, initTelemetry, type Logger } from '@arcdio/observability'
+import type { DeviceSocketData } from '@aleph-connector/device-gateway'
+import { createLogger, initTelemetry, type Logger } from '@aleph-connector/observability'
 import { createApp } from './app.js'
+import { createMcpOAuth } from './auth/createMcpOAuth.js'
+import { configurePostgresIdentity } from './auth/configurePostgresIdentity.js'
 import { loadMcpServerConfig } from './config.js'
 import { configureDevIdentity } from './dev/configureDevIdentity.js'
 
 // No-op unless Langfuse observability is configured.
-initTelemetry({ serviceName: 'arcdio-mcp' })
+initTelemetry({ serviceName: 'aleph-mcp' })
 
 const log: Logger = createLogger('mcp-server')
 const config = loadMcpServerConfig()
-// Opt-in dev-tier identity for the live AutoCAD E2E lane; production leaves identity fail-closed.
-configureDevIdentity(process.env, log)
-const app = createApp(config)
+// Device credential issuer/verifier for Connector WSS only — never used as MCP client auth.
+// Dev file store wins when ALEPH_DEV_IDENTITY=1; otherwise Postgres when DATABASE_URL is set.
+if (!configureDevIdentity(process.env, log)) {
+  configurePostgresIdentity(process.env, log)
+}
+const { oauth } = createMcpOAuth(process.env, config.port)
+const app = createApp(config, oauth)
 app.gateway.startHeartbeatSweep()
 
 // Bun closes a connection that sends nothing for `idleTimeout` seconds, 10 by default. A tool call
@@ -29,7 +35,10 @@ const server = Bun.serve<DeviceSocketData>({
 log.info('listening', {
   port: server.port,
   mcpPath: config.mcpPath,
-  devicePath: config.gateway.devicePath
+  devicePath: config.gateway.devicePath,
+  issuer: config.issuerUrl,
+  resource: config.resourceUrl,
+  authorize: `${config.issuerUrl}/oauth/authorize`
 })
 
 process.on('SIGINT', () => void shutdown())

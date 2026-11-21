@@ -1,6 +1,6 @@
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { RpcMethodMap, RpcMethodName } from '@arcdio/cad-protocol'
-import type { OpenDocumentInfo } from '@arcdio/cad-types'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { RpcMethodMap, RpcMethodName } from '@aleph-connector/cad-protocol'
+import type { OpenDocumentInfo } from '@aleph-connector/cad-types'
 import type { BridgeClient, BridgeRequestOptions } from './BridgeClient.js'
 
 /** The document one MCP session has pinned, and the AutoCAD process that document lives in. */

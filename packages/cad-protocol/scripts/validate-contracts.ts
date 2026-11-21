@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Validates every fixture in schemas/fixtures/*.json against device-protocol.schema.json, and
- * asserts the parsed shape matches what @arcdio/device-protocol's device-protocol.ts expects
+ * asserts the parsed shape matches what @aleph-connector/device-protocol's device-protocol.ts expects
  * (via parseDeviceMessage's ajv-compiled validator). Run via `bun run validate`.
  *
  * This is the regression net for the hand-authored TS/C# mirrors of the schema: if someone edits
@@ -12,7 +12,7 @@
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DeviceMessageValidationError, parseDeviceMessage } from '@arcdio/cad-protocol'
+import { DeviceMessageValidationError, parseDeviceMessage } from '@aleph-connector/cad-protocol'
 
 const fixturesDir = join(import.meta.dirname, '..', 'schemas', 'fixtures')
 const files = readdirSync(fixturesDir).filter((f) => f.endsWith('.json'))

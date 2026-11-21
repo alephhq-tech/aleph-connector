@@ -5,9 +5,9 @@
     "esModuleInterop": true,
     "baseUrl": "../..",
     "paths": {
-      "@arcdio/cad-types": ["packages/cad-types/src/index.ts"],
-      "@arcdio/device-protocol": ["packages/device-protocol/device-protocol.ts"],
-      "@arcdio/cad-protocol": ["packages/cad-protocol/index.ts"]
+      "@aleph-connector/cad-types": ["packages/cad-types/src/index.ts"],
+      "@aleph-connector/device-protocol": ["packages/device-protocol/device-protocol.ts"],
+      "@aleph-connector/cad-protocol": ["packages/cad-protocol/index.ts"]
     },
     "outDir": "dist",
     "rootDir": ".",

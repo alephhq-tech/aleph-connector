@@ -2,13 +2,13 @@ import {
   BridgeErrorCode,
   BridgeRpcError,
   describeBridgeErrorCode
-} from '@arcdio/cad-protocol'
-import { DeviceGatewayError, GatewayErrorCode } from '@arcdio/device-contracts'
+} from '@aleph-connector/cad-protocol'
+import { DeviceGatewayError, GatewayErrorCode } from '@aleph-connector/device-contracts'
 import {
   PinnedDocumentGoneError,
   PinnedInstanceMismatchError
 } from '../bridge/PinnedBridgeClient.js'
-import { OUTCOME_META_KEY } from '@arcdio/operation-protocol'
+import { OUTCOME_META_KEY } from '@aleph-connector/operation-protocol'
 
 /**
  * Tool execution failures as `isError: true` results the model can act on (#13, #71): the error

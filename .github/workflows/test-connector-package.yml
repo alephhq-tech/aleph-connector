@@ -1,0 +1,45 @@
+name: Verify Aleph Connector package
+
+on:
+  pull_request:
+    paths:
+      - 'windows/installer/**'
+      - 'windows/scripts/**'
+      - 'windows/connector/**'
+      - 'windows/autocad-plugin/**'
+      - 'windows/updater/**'
+      - 'windows/contracts/**'
+      - '.github/workflows/release-connector.yml'
+      - '.github/workflows/test-connector-package.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    name: Package + validate client bundle
+    runs-on: [self-hosted, windows, x64, aleph-windows-ci]
+    defaults:
+      run:
+        shell: powershell
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}\dotnet
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build and package the client distribution
+        run: ./scripts/package-client.ps1 -OutputDir "$env:RUNNER_TEMP/arcdio-client"
+
+      - name: Re-package into the same directory (idempotency)
+        run: ./scripts/package-client.ps1 -OutputDir "$env:RUNNER_TEMP/arcdio-client"
+
+      - name: Validate packaged Bridge, Plugin, Setup, and installer script
+        run: ./scripts/Test-PackagedBundle.ps1 -PackageDir "$env:RUNNER_TEMP/arcdio-client"
+
+      - name: Test Bridge packaging contracts
+        run: dotnet test connector.Tests/CadAI.Bridge.Tests.csproj -c Release --nologo --filter FullyQualifiedName~UpdateChannelContractTests

@@ -1,3 +1,3 @@
 export * from './methods.js'
 export * from './errors.js'
-export type * from '@arcdio/cad-types'
+export type * from '@aleph-connector/cad-types'

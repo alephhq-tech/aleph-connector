@@ -6,7 +6,7 @@ import {
   parseDeviceMessage,
   type CapabilityExecuteMessage,
   type DeviceMessage
-} from '@arcdio/cad-protocol'
+} from '@aleph-connector/cad-protocol'
 import type { DeviceAuthenticator } from './auth/DeviceAuthenticator.js'
 import { DeviceGatewayService } from './DeviceGatewayService.js'
 import { serveGateway } from './serve.js'

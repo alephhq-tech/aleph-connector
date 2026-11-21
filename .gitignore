@@ -14,6 +14,7 @@ coverage/
 
 # Local dev-lane state: file-backed device grants and minted credentials. Never commit.
 .arcdio-dev/
+.aleph-dev/
 
 # Live E2E lane output artifact (rewritten each harness run; regenerate, don't commit).
 e2e-live-report.json
@@ -24,6 +25,13 @@ artifacts/
 *.msix
 *.exe
 *.pdb
+
+# Local update-signing scratch keys — never commit private material.
+windows/tmp-keys/
+
+# Next.js
+**/.next/
+**/tsconfig.tsbuildinfo
 
 # Editors and OS
 .vscode/

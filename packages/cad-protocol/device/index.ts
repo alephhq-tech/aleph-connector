@@ -2,7 +2,7 @@
  * WSS Device Protocol layer: the envelope exchanged between device-gateway (TypeScript) and bridge
  * (C#) over the persistent `wss://.../device` connection. Types come from
  *
- * @arcdio/device-protocol (hand-authored mirror of ../schemas/device-protocol.schema.json —
+ * @aleph-connector/device-protocol (hand-authored mirror of ../schemas/device-protocol.schema.json —
  * see that file's header for why it isn't tool-generated). This module adds the one thing generated
  * code can't: runtime validation of frames actually crossing the wire against the schema.
  */
@@ -12,9 +12,9 @@ import { Ajv2020 } from 'ajv/dist/2020.js'
 import addFormatsModule from 'ajv-formats'
 
 const addFormats = addFormatsModule.default ?? addFormatsModule
-import type { DeviceMessage, ProtocolVersion } from '@arcdio/device-protocol'
+import type { DeviceMessage, ProtocolVersion } from '@aleph-connector/device-protocol'
 
-export * from '@arcdio/device-protocol'
+export * from '@aleph-connector/device-protocol'
 
 /** Device protocol versions this repo's Device Gateway and Bridge currently negotiate. */
 export const DEVICE_PROTOCOL_VERSION: ProtocolVersion = { min: 1, max: 1 }

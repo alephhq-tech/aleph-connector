@@ -1,5 +1,5 @@
-import type { Point2D } from '@arcdio/engineering'
-import { areaOf, ensureCCW, pointInRing } from '@arcdio/engineering'
+import type { Point2D } from '@aleph-connector/engineering'
+import { areaOf, ensureCCW, pointInRing } from '@aleph-connector/engineering'
 
 /**
  * Pure half of Slice 02 step 4: given the label points an inspect already returned and the closed

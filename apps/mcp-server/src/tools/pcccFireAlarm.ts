@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { CreateEntityParams, EntityOperation } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { CreateEntityParams, EntityOperation } from '@aleph-connector/cad-protocol'
 import {
   areaOf,
   bboxOf,
@@ -18,8 +18,8 @@ import {
   type FireAlarmFullPlanResult,
   type PcccBlockAssignment,
   type PlanReadbackReport
-} from '@arcdio/engineering'
-import { resolveSymbolCatalogEntry } from '@arcdio/cad-state'
+} from '@aleph-connector/engineering'
+import { resolveSymbolCatalogEntry } from '@aleph-connector/cad-state'
 import {
   checkOperationsScope,
   resolveDrawingUnits,
@@ -33,7 +33,7 @@ import { applyBatch } from './applyBatch.js'
 import { portableInputSchema } from './portableSchema.js'
 import { documentName, instanceId, literalValues } from './shared.js'
 import { refsResultMode } from './resultShape.js'
-import { createEntityParams, idempotencyKey } from '@arcdio/cad-tools'
+import { createEntityParams, idempotencyKey } from '@aleph-connector/cad-tools'
 import { expandEntity } from './normalize.js'
 import { textResult } from './textResult.js'
 import { mutatingGuarded } from './toolError.js'

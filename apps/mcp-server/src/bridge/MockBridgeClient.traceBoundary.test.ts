@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import { MockBridgeClient } from './MockBridgeClient.js'
 
 describe('entity.traceBoundary RPC method', () => {

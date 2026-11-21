@@ -663,7 +663,7 @@ namespace CadAI.AutoCAD.RpcHandlers
                 // genuinely reverts (entity list: the level is gone) yet REDO reports "redone" while
                 // restoring nothing, under (a) REDO with/without a count arg, (b) undo->redo with zero
                 // reads between them, (c) the apply phase wrapped in a real registered command
-                // (ARCDIOAPPLY) so its writes are a command-level undo record, not just a raw
+                // (Aleph ConnectorAPPLY) so its writes are a command-level undo record, not just a raw
                 // transaction. AutoCAD 2022 REDO replays a *command action*, and neither a managed
                 // transaction nor that command host performs an entity-creating action AutoCAD can
                 // replay. Fixing redo needs journal replay (BatchJournal/CadTaskLedger pre-images),

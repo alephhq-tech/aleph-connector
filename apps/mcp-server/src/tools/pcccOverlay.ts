@@ -1,20 +1,20 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
-import type { CreateEntityParams, EntityOperation, Point3d } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
+import type { CreateEntityParams, EntityOperation, Point3d } from '@aleph-connector/cad-protocol'
 import {
   generateSprinklerLayout,
   routeSprinklerPipes,
   verifyEngineeringDesign,
   hashCanonical,
   outOfScopeViolation
-} from '@arcdio/engineering'
+} from '@aleph-connector/engineering'
 import type {
   Point2D,
   SprinklerHead,
   VerificationFinding,
   PlanReadbackReport
-} from '@arcdio/engineering'
+} from '@aleph-connector/engineering'
 import {
   checkOperationsScope,
   resolveDrawingUnits,
@@ -28,7 +28,7 @@ import { applyBatch } from './applyBatch.js'
 import { portableInputSchema } from './portableSchema.js'
 import { documentName, instanceId, literalValues } from './shared.js'
 import { refsResultMode } from './resultShape.js'
-import { idempotencyKey } from '@arcdio/cad-tools'
+import { idempotencyKey } from '@aleph-connector/cad-tools'
 import { textResult } from './textResult.js'
 import { mutatingGuarded } from './toolError.js'
 import { outcomeMeta } from './attestOutcome.js'
@@ -39,7 +39,7 @@ import {
   visualReviewOption,
   withCapture
 } from './capture.js'
-import { resolveSymbolCatalogEntry } from '@arcdio/cad-state'
+import { resolveSymbolCatalogEntry } from '@aleph-connector/cad-state'
 import { DRAWING_OPEN_TIMEOUT_MS } from './drawing.js'
 import type { RegionGeometrySource } from './floorplanCadState.js'
 import {
@@ -60,7 +60,7 @@ import {
  *
  * The measured baseline (#413 §13.1) showed ~85 model calls per heavy CAD run for ~60 CAD
  * tool calls — the LLM was hand-drawing every head and pipe segment. This tool compiles the
- * WHOLE overlay inside this process: the existing @arcdio/engineering planners run in-process,
+ * WHOLE overlay inside this process: the existing @aleph-connector/engineering planners run in-process,
  * data moves as local variables, and the drawing receives ONE journaled operations.apply
  * batch. The model sees only bounded counts/verdicts, never hundreds of coordinate arrays.
  *

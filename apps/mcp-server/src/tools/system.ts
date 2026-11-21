@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
-import { RpcMethod } from '@arcdio/cad-protocol'
+import { RpcMethod } from '@aleph-connector/cad-protocol'
 import type { BridgeClient } from '../bridge/BridgeClient.js'
 import { withInstance } from './instanceScope.js'
 import { portableInputSchema } from './portableSchema.js'
