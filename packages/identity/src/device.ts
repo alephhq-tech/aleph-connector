@@ -106,10 +106,6 @@ export async function resolveDeviceIdForCaller(
       'No paired AutoCAD device for this account — pair a Connector before calling CAD tools.'
     )
   }
-  if (grants.length > 1) {
-    throw new Error(
-      `Multiple paired devices (${grants.map((g) => g.deviceId).join(', ')}); multi-device select is not implemented yet.`
-    )
-  }
+  // Until multi-device select exists, prefer the newest grant (stores order by created_at DESC).
   return grants[0]!.deviceId
 }

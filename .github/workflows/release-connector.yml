@@ -1,6 +1,6 @@
 name: Build and publish Aleph Connector
 
-# Standalone Connector ZIP (Bridge + AutoCAD plugin + AlephConnector.Setup) → MinIO releases/aleph-connector.
+# Standalone Connector ZIP (Bridge + AutoCAD plugin + AlephConnector.exe) → MinIO releases/aleph-connector.
 # Mirrors aleph-platform release-desktop.yml (not the Tauri Desktop app workflow).
 
 on:
@@ -85,7 +85,7 @@ jobs:
             foreach ($entry in $check.Entries) {
               if ($entry.FullName.Contains('\')) { throw "release ZIP entry '$($entry.FullName)' is not '/'-separated." }
             }
-            foreach ($required in @('bridge/CadAI.Bridge.exe', 'AlephConnector.Setup.exe', 'install.ps1', 'CadAI.bundle/current.json')) {
+            foreach ($required in @('bridge/CadAI.Bridge.exe', 'AlephConnector.exe', 'install.ps1', 'CadAI.bundle/current.json')) {
               if (-not ($check.Entries | Where-Object { $_.FullName -eq $required })) {
                 throw "release ZIP is missing $required."
               }

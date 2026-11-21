@@ -17,12 +17,20 @@ export interface McpOAuthServerConfig {
   refreshTokenTtlSeconds?: number
   authorizationCodeTtlSeconds?: number
   store?: McpOAuthStore
-  /** Portal origin for interactive account login (same path in local and production). */
-  portalUrl?: string
   /**
-   * Shared secret for `POST /oauth/portal/approve` (portal → AS). Required for interactive
-   * consent completion; without it the portal cannot finish the authorization_code loop.
+   * Deep-link (or HTTPS) URI that receives OAuth consent. Default
+   * `aleph-connector://oauth/consent` opens the Windows Connector app.
+   * @deprecated Prefer `connectorConsentUri`.
    */
+  portalUrl?: string
+  /** Deep-link base for interactive consent (e.g. `aleph-connector://oauth/consent`). */
+  connectorConsentUri?: string
+  /**
+   * Shared secret for `POST /oauth/connector/approve` (Connector → AS). Also accepted on the
+   * legacy `/oauth/portal/approve` path.
+   */
+  connectorApproveSecret?: string
+  /** @deprecated Use `connectorApproveSecret`. */
   portalApproveSecret?: string
   allowDevCodeIssuance?: boolean
 }
@@ -76,8 +84,8 @@ export class McpOAuthAuthorizationServer {
   private readonly accessTtl: number
   private readonly refreshTtl: number
   private readonly codeTtl: number
-  private readonly portalUrl: string | undefined
-  private readonly portalApproveSecret: string | undefined
+  private readonly connectorConsentUri: string
+  private readonly connectorApproveSecret: string | undefined
   private readonly allowDevCodeIssuance: boolean
 
   constructor(config: McpOAuthServerConfig) {
@@ -88,8 +96,14 @@ export class McpOAuthAuthorizationServer {
     this.accessTtl = config.accessTokenTtlSeconds ?? ACCESS_TTL
     this.refreshTtl = config.refreshTokenTtlSeconds ?? REFRESH_TTL
     this.codeTtl = config.authorizationCodeTtlSeconds ?? AUTH_CODE_TTL
-    this.portalUrl = config.portalUrl?.replace(/\/$/, '')
-    this.portalApproveSecret = config.portalApproveSecret?.trim() || undefined
+    const consent =
+      config.connectorConsentUri?.trim() ||
+      (config.portalUrl?.trim()
+        ? `${config.portalUrl.replace(/\/$/, '')}/oauth/consent`
+        : 'aleph-connector://oauth/consent')
+    this.connectorConsentUri = consent.replace(/\/$/, '')
+    this.connectorApproveSecret =
+      config.connectorApproveSecret?.trim() || config.portalApproveSecret?.trim() || undefined
     this.allowDevCodeIssuance = config.allowDevCodeIssuance === true
   }
 
@@ -126,8 +140,11 @@ export class McpOAuthAuthorizationServer {
     if (url.pathname === '/oauth/login' && request.method === 'GET') {
       return this.loginPage(url)
     }
-    if (url.pathname === '/oauth/portal/approve' && request.method === 'POST') {
-      return this.handlePortalApprove(request)
+    if (
+      (url.pathname === '/oauth/connector/approve' || url.pathname === '/oauth/portal/approve') &&
+      request.method === 'POST'
+    ) {
+      return this.handleConnectorApprove(request)
     }
     if (
       this.allowDevCodeIssuance &&
@@ -139,20 +156,20 @@ export class McpOAuthAuthorizationServer {
     return null
   }
 
-  private async handlePortalApprove(request: Request): Promise<Response> {
-    if (!this.portalApproveSecret) {
+  private async handleConnectorApprove(request: Request): Promise<Response> {
+    if (!this.connectorApproveSecret) {
       return oauthError(
         'server_error',
-        'Portal approve is not configured (set PORTAL_APPROVE_SECRET).',
+        'Connector approve is not configured (set CONNECTOR_APPROVE_SECRET).',
         503
       )
     }
     const auth = request.headers.get('authorization') ?? ''
-    const expected = `Bearer ${this.portalApproveSecret}`
+    const expected = `Bearer ${this.connectorApproveSecret}`
     const a = Buffer.from(auth)
     const b = Buffer.from(expected)
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      return oauthError('invalid_client', 'Portal approve authentication failed', 401)
+      return oauthError('invalid_client', 'Connector approve authentication failed', 401)
     }
     let body: Record<string, unknown>
     try {
@@ -175,7 +192,7 @@ export class McpOAuthAuthorizationServer {
     } catch (err) {
       return oauthError(
         'invalid_request',
-        err instanceof Error ? err.message : 'portal_approve_failed'
+        err instanceof Error ? err.message : 'connector_approve_failed'
       )
     }
   }
@@ -249,16 +266,31 @@ export class McpOAuthAuthorizationServer {
 
   private loginPage(url: URL): Response {
     const authorizePath = url.searchParams.get('authorize') ?? '/oauth/authorize'
-    if (this.portalUrl) {
-      const portal = new URL('/oauth/consent', this.portalUrl)
-      portal.searchParams.set('return_to', new URL(authorizePath, this.issuer).toString())
-      return Response.redirect(portal.toString(), 302)
+    const returnTo = new URL(authorizePath, this.issuer).toString()
+    let deepLink: URL
+    try {
+      deepLink = new URL(this.connectorConsentUri)
+    } catch {
+      return oauthError('server_error', 'Invalid connectorConsentUri', 500)
     }
-    return oauthError(
-      'login_required',
-      'Interactive login requires Aleph Portal (set ALEPH_PORTAL_URL).',
-      401
-    )
+    deepLink.searchParams.set('return_to', returnTo)
+    // Custom schemes: redirect + HTML fallback that auto-opens the Connector app.
+    if (deepLink.protocol !== 'http:' && deepLink.protocol !== 'https:') {
+      const href = deepLink.toString()
+      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Open Aleph Connector</title>
+<meta http-equiv="refresh" content="0;url=${escapeHtml(href)}"/>
+</head><body style="font-family:system-ui;padding:2rem">
+<p>Opening <strong>Aleph Connector</strong> to approve this sign-in…</p>
+<p><a href="${escapeHtml(href)}">Open Aleph Connector</a> if nothing happens.</p>
+<p style="color:#666;font-size:0.9rem">Install Connector from alephhq.tech/download if you do not have it yet.</p>
+<script>location.href=${JSON.stringify(href)}</script>
+</body></html>`
+      return new Response(html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      })
+    }
+    return Response.redirect(deepLink.toString(), 302)
   }
 
   private handleAuthorize(url: URL): Response {
@@ -494,6 +526,15 @@ export class McpOAuthAuthorizationServer {
     this.store.putClient(client)
     return client
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 }
 
 async function formParams(request: Request): Promise<URLSearchParams> {

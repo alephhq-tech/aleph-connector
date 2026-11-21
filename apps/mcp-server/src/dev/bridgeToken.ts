@@ -127,6 +127,19 @@ export class JsonFileGrantStore implements MutableDeviceGrantStore {
     return touched
   }
 
+  async revokeAllActive(deviceId: string): Promise<number> {
+    const rows = this.read()
+    let n = 0
+    for (const g of rows) {
+      if (g.status === 'active' && g.deviceId === deviceId) {
+        g.status = 'revoked'
+        n += 1
+      }
+    }
+    if (n > 0) this.write(rows)
+    return n
+  }
+
   async validate(
     deviceId: string,
     workspaceId: string,

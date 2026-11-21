@@ -13,6 +13,8 @@ export class GrantDeniedError extends Error {
 export interface MutableDeviceGrantStore extends DeviceGrantStore {
   claim(deviceId: string, workspaceId: string, userId: string): Promise<DeviceGrantRecord>
   revoke(deviceId: string, workspaceId: string, userId: string): Promise<boolean>
+  /** Revoke every active grant for a device (Connector re-pair / machine takeover). */
+  revokeAllActive(deviceId: string): Promise<number>
 }
 
 interface GrantRow {
@@ -85,6 +87,17 @@ export class MemoryDeviceGrantStore implements MutableDeviceGrantStore {
     return touched
   }
 
+  async revokeAllActive(deviceId: string): Promise<number> {
+    let n = 0
+    for (const g of this.rows) {
+      if (g.status === 'active' && g.deviceId === deviceId) {
+        g.status = 'revoked'
+        n += 1
+      }
+    }
+    return n
+  }
+
   async validate(
     deviceId: string,
     workspaceId: string,
@@ -106,6 +119,7 @@ export class MemoryDeviceGrantStore implements MutableDeviceGrantStore {
   async listForCaller(workspaceId: string, userId: string): Promise<DeviceGrantRecord[]> {
     return this.rows
       .filter((g) => g.status === 'active' && g.workspaceId === workspaceId && g.userId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt)
       .map((g) => ({
         deviceId: g.deviceId,
         workspaceId: g.workspaceId,
@@ -124,7 +138,7 @@ export interface SqlExecutor {
 }
 
 /**
- * Postgres-backed `device_grants` (see apps/portal/sql/schema.sql). Same first-claim / generation
+ * Postgres-backed `device_grants` (see apps/gateway/sql/schema.sql). Same first-claim / generation
  * semantics as the in-memory and JSON-file stores.
  */
 export class PostgresDeviceGrantStore implements MutableDeviceGrantStore {
@@ -185,6 +199,16 @@ export class PostgresDeviceGrantStore implements MutableDeviceGrantStore {
     return updated.length > 0
   }
 
+  async revokeAllActive(deviceId: string): Promise<number> {
+    const updated = await this.sql.query<{ device_id: string }>(
+      `UPDATE device_grants SET status = 'revoked'
+       WHERE status = 'active' AND device_id = $1
+       RETURNING device_id`,
+      [deviceId]
+    )
+    return updated.length
+  }
+
   async validate(
     deviceId: string,
     workspaceId: string,
@@ -211,7 +235,8 @@ export class PostgresDeviceGrantStore implements MutableDeviceGrantStore {
       generation: number
     }>(
       `SELECT device_id, workspace_id, user_id, generation FROM device_grants
-       WHERE status = 'active' AND workspace_id = $1 AND user_id = $2`,
+       WHERE status = 'active' AND workspace_id = $1 AND user_id = $2
+       ORDER BY created_at DESC`,
       [workspaceId, userId]
     )
     return rows.map((g) => ({

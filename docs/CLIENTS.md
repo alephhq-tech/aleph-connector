@@ -2,9 +2,9 @@
 
 Aleph MCP speaks **Streamable HTTP** at your public MCP URL (e.g. `https://mcp.alephhq.tech/mcp`) and authenticates with **OAuth 2.1 + PKCE**. There is no static API token.
 
-Interactive login goes through the Aleph Portal (`https://portal.alephhq.tech`): authorize → portal consent → `POST /oauth/portal/approve` → authorization code → access token.
+Interactive login goes through **Aleph Gateway** (`https://gateway.alephhq.tech`) and deep-links into the Windows **Aleph Connector** app for consent (`aleph-connector://oauth/consent`). MCP resource metadata advertises the gateway as the authorization server.
 
-The Windows **Aleph Connector Setup** (`AlephConnector.Setup.exe`) can detect agents on the machine and write the config snippets below. Device pairing (AutoCAD Bridge credential) is separate — use the portal **Devices** page after install.
+Install and configure agents with **Aleph Connector** (Setup): sign in → Install AutoCAD → Install MCP for detected agents.
 
 ## Cursor
 
@@ -20,7 +20,23 @@ The Windows **Aleph Connector Setup** (`AlephConnector.Setup.exe`) can detect ag
 }
 ```
 
-Complete the OAuth browser flow when Cursor connects.
+Complete the OAuth browser flow when Cursor connects (Approve in Aleph Connector).
+
+## Antigravity
+
+`%USERPROFILE%\.gemini\config\mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "aleph-connector": {
+      "serverUrl": "https://mcp.alephhq.tech/mcp"
+    }
+  }
+}
+```
+
+In Antigravity: MCP Servers → Manage → Refresh after Connector writes the file. OAuth opens Aleph Connector for consent.
 
 ## Claude Desktop
 
@@ -60,8 +76,8 @@ claude mcp add --transport http aleph-connector https://mcp.alephhq.tech/mcp
 
 ## Codex CLI
 
-Point Codex’s MCP settings at the same HTTP URL (`https://mcp.alephhq.tech/mcp`) and complete OAuth when prompted. Exact key names follow your Codex version — see Codex MCP docs; do **not** paste a static bearer token.
+Point Codex’s MCP settings at the same HTTP URL (`https://mcp.alephhq.tech/mcp`) and complete OAuth when prompted.
 
 ## Local / e2e only
 
-With `ALEPH_DEV_IDENTITY=1` on mcp-server, `bun run oauth:access-token` and `bun run mint:dev-credential` remain for automated lanes. Production and portal users never use those shortcuts.
+With `ALEPH_DEV_IDENTITY=1` on **gateway**, `bun run oauth:access-token` (from `apps/mcp-server`, hitting `ALEPH_GATEWAY_URL`) and `bun run mint:dev-credential` remain for automated lanes.

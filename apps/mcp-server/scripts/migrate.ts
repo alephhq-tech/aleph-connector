@@ -1,13 +1,9 @@
 #!/usr/bin/env bun
 /**
- * Applies the shared Postgres schema (apps/portal/sql/schema.sql) against this app's
- * DATABASE_URL. Same tables portal uses — users/sessions for the portal app, device_grants
- * for mcp-server Postgres identity. Idempotent (CREATE IF NOT EXISTS).
+ * Applies the shared Postgres schema (apps/gateway/sql/schema.sql) against this app's
+ * DATABASE_URL (device_grants for Postgres identity). Prefer `cd apps/gateway && bun run db:migrate`.
  *
  *   cd apps/mcp-server && bun run db:migrate
- *
- * Equivalent to `cd apps/portal && bun run db:migrate` when both .env files point at the
- * same database.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -23,7 +19,7 @@ async function main(): Promise<void> {
     dirname(fileURLToPath(import.meta.url)),
     '..',
     '..',
-    'portal',
+    'gateway',
     'sql',
     'schema.sql'
   )

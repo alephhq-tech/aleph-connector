@@ -17,8 +17,8 @@ MCP clients authenticate with **OAuth 2.1 + PKCE** (no static API tokens). Devic
 
 ```text
 apps/
+  gateway/          Account auth, OAuth AS, device grants
   mcp-server/       Remote MCP HTTP service and WSS device gateway
-  portal/           Account, pairing, devices, grants, and downloads
 packages/
   cad-core/         Transport-independent command and execution contracts
   cad-protocol/     Canonical TypeScript ↔ C# wire contracts
@@ -27,10 +27,11 @@ packages/
   engineering/      Private geometry and engineering algorithms
   identity/         MCP OAuth, pairing, device credentials, and grants
 windows/
-  connector/        Compiled Windows device runtime
+  connector/        Compiled Windows device runtime (Bridge)
+  connector-app/    Aleph Connector desktop UI (Tauri v2 + Bun)
   autocad-plugin/   Compiled in-process AutoCAD integration
   updater/          Signed update client
-  installer/        Installer and AutoCAD bundle packaging
+  installer/        AutoCAD bundle packaging
 docs/
   architecture.md
   extraction-map.md

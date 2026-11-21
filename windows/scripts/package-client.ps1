@@ -63,7 +63,10 @@ param(
     [string]$Version = "",
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputDir = ""
+    [string]$OutputDir = "",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipConnectorBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -348,7 +351,7 @@ if (-not (Test-Path $desktopAppDir) -or -not @(Get-ChildItem $desktopAppDir -Dir
 # 1. Validate prerequisites and back up existing credential/env before any mutations.
 # These will be restored if update fails during staging, activation, or startup verification.
 if (-not $DeviceToken) {
-    Write-Warning "No DeviceToken yet — Bridge will install without a credential. Pair at https://portal.alephhq.tech and re-run Setup / install.ps1 with the minted ABT."
+    Write-Warning "No DeviceToken yet - Bridge will install without a credential. Sign in with Aleph Connector to pair, then re-run Setup / install.ps1 if needed."
 }
 $identityDir = Join-Path $env:LOCALAPPDATA 'CadAI\bridge'
 $identityPath = Join-Path $identityDir 'identity.json'
@@ -461,7 +464,9 @@ try {
     # staging and preflight checks have passed.
     if ($GatewayUrl) {
         [Environment]::SetEnvironmentVariable("CADAI_GATEWAY_URL", $GatewayUrl, "User")
-        Write-Host "CADAI_GATEWAY_URL set to $GatewayUrl (User scope)"
+        # Avoid "$var (User ...)" inside double quotes - PS 5.1 can parse (User) as a command
+        # when the script file encoding mis-reads Unicode dashes earlier in the file.
+        Write-Host ("CADAI_GATEWAY_URL set to {0} (User scope)" -f $GatewayUrl)
     }
     if (-not $DeviceId) {
         # Prefer an existing paired identity; otherwise mint a stable local deviceId for portal pairing.
@@ -681,7 +686,14 @@ Write-Host "========================================="
 function Expand-UpdateChannel([string]$scriptText) {
     $scriptText -replace '\{\{MANIFEST_URL\}\}', $manifestUrl -replace '\{\{KEY_INSTALL_SUBDIR\}\}', $keyInstallSubdir
 }
-Set-Content -Path (Join-Path $OutputDir 'install.ps1') -Value (Expand-UpdateChannel $clientInstallScript)
+# UTF-8 with BOM so Windows PowerShell 5.1 -File does not misread Unicode as ANSI
+# (UTF-8 em-dash bytes otherwise become a stray quote and break later strings).
+$installPs1Path = Join-Path $OutputDir 'install.ps1'
+[System.IO.File]::WriteAllText(
+    $installPs1Path,
+    (Expand-UpdateChannel $clientInstallScript),
+    (New-Object System.Text.UTF8Encoding $true)
+)
 
 # Client uninstall script
 $clientUninstallScript = @'
@@ -743,7 +755,12 @@ foreach ($key in $variablesKeys) {
 }
 Write-Host "Uninstalled successfully."
 '@
-Set-Content -Path (Join-Path $OutputDir 'uninstall.ps1') -Value (Expand-UpdateChannel $clientUninstallScript)
+$uninstallPs1Path = Join-Path $OutputDir 'uninstall.ps1'
+[System.IO.File]::WriteAllText(
+    $uninstallPs1Path,
+    (Expand-UpdateChannel $clientUninstallScript),
+    (New-Object System.Text.UTF8Encoding $true)
+)
 
 # Client README text file (simple, plain text for any user)
 $clientReadmeText = @'
@@ -752,20 +769,20 @@ CadAI AutoCAD Integration - Client Package
 ================================================================================
 
 This package contains:
-1. AlephConnector.Setup.exe - Windows Setup wizard (detect agents, install MCP + AutoCAD)
+1. AlephConnector.exe - Aleph Connector (Tauri) — sign in, install MCP + AutoCAD
 2. bridge/          - CadAI.Bridge.exe (headless daemon to the Device Gateway)
 3. CadAI.bundle/    - AutoCAD ApplicationPlugins bundle (autoloads in AutoCAD)
-4. install.ps1      - Automated installation script (also invoked by AlephConnector.Setup)
+4. install.ps1      - Automated installation script (also invoked by Aleph Connector)
 5. uninstall.ps1    - Clean removal script
 
 --------------------------------------------------------------------------------
 OPTION 1: SETUP WIZARD (Recommended)
 --------------------------------------------------------------------------------
-Double-click `AlephConnector.Setup.exe`:
+Double-click `AlephConnector.exe`:
 - Install Bridge + AutoCAD plugin
 - Detect Cursor / Claude Desktop / Claude Code / VS Code / Codex
 - Write Aleph MCP (OAuth) into the agents you select
-Then open https://portal.alephhq.tech to sign in and pair the device.
+Then open Aleph Connector, sign in, and pair the device (writes identity.json automatically).
 
 --------------------------------------------------------------------------------
 OPTION 2: POWERShell INSTALL (No Admin Required)
@@ -821,23 +838,38 @@ Type `CADAISTATUS` in AutoCAD to confirm anytime.
 '@
 Set-Content -Path (Join-Path $OutputDir 'README.txt') -Value ($clientReadmeText -replace '\{\{VERSION\}\}', $Version)
 
-# Setup wizard (WinForms): detect agent CLIs, write MCP configs, invoke install.ps1 for AutoCAD.
-$setupProj = Join-Path $repoRoot 'installer/setup/AlephConnector.Setup.csproj'
-$setupOut = Join-Path $OutputDir 'setup-build'
-Write-Host "`n--- Publishing AlephConnector.Setup ---"
-New-Item -ItemType Directory -Force -Path $setupOut | Out-Null
-& dotnet publish $setupProj -c Release -o $setupOut --nologo -v q @crossWindowsArgs
-if ($LASTEXITCODE -ne 0) { throw "dotnet publish AlephConnector.Setup failed." }
-Copy-Item -Force (Join-Path $setupOut 'AlephConnector.Setup.exe') (Join-Path $OutputDir 'AlephConnector.Setup.exe')
-Get-ChildItem $setupOut -File | Where-Object { $_.Extension -in '.dll', '.json', '.pdb' } | ForEach-Object {
-    Copy-Item -Force $_.FullName (Join-Path $OutputDir $_.Name)
+# Aleph Connector (Tauri v2 + Bun frontend)
+$connectorApp = Join-Path $repoRoot 'connector-app'
+if ($SkipConnectorBuild) {
+    Write-Host "`n--- Skipping Aleph Connector build (-SkipConnectorBuild) ---"
+    Write-Host "  Use tauri:dev / an existing AlephConnector.exe; package still has install.ps1 + Bridge."
+} else {
+    Write-Host "`n--- Building Aleph Connector (Tauri) ---"
+    Push-Location $connectorApp
+    try {
+        & bun install
+        if ($LASTEXITCODE -ne 0) { throw "bun install failed in connector-app." }
+        & bun run tauri:build
+        if ($LASTEXITCODE -ne 0) { throw "bun run tauri:build failed." }
+    } finally {
+        Pop-Location
+    }
+    $tauriExe = Join-Path $connectorApp 'src-tauri/target/release/aleph-connector.exe'
+    if (-not (Test-Path $tauriExe)) {
+        throw "Tauri release binary not found at $tauriExe"
+    }
+    Copy-Item -Force $tauriExe (Join-Path $OutputDir 'AlephConnector.exe')
+    Write-Host "  AlephConnector.exe -> $OutputDir"
 }
-Remove-Item -LiteralPath $setupOut -Recurse -Force -ErrorAction SilentlyContinue
-Write-Host "  AlephConnector.Setup.exe -> $OutputDir"
 
 $validator = Join-Path $repoRoot 'scripts/Test-PackagedBundle.ps1'
 $requiredGenerations = if ($RequireAllGenerations) { @('net48', 'net8.0-windows', 'net10.0-windows') } else { @() }
-& $validator -PackageDir $OutputDir -RequiredGenerations $requiredGenerations
+$validatorArgs = @{
+    PackageDir = $OutputDir
+    RequiredGenerations = $requiredGenerations
+}
+if ($SkipConnectorBuild) { $validatorArgs.AllowMissingConnector = $true }
+& $validator @validatorArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Packaged AutoCAD client validation failed."
 }

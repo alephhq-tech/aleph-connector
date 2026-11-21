@@ -5,7 +5,10 @@ param(
     [string]$PackageDir,
 
     [Parameter(Mandatory = $false)]
-    [string[]]$RequiredGenerations = @()
+    [string[]]$RequiredGenerations = @(),
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AllowMissingConnector
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,9 +90,13 @@ foreach ($generation in $RequiredGenerations) {
 
 # The updater's packaging script must be syntactically valid under Windows PowerShell;
 # compiling the .NET Bridge alone cannot catch a broken one-click installer.
-$setupExe = Join-Path $package 'AlephConnector.Setup.exe'
+$setupExe = Join-Path $package 'AlephConnector.exe'
 if (-not (Test-Path $setupExe -PathType Leaf)) {
-    throw "Packaged Aleph Connector Setup wizard is missing: $setupExe"
+    if ($AllowMissingConnector) {
+        Write-Warning "AlephConnector.exe missing (allowed by -AllowMissingConnector): $setupExe"
+    } else {
+        throw "Packaged Aleph Connector Setup wizard is missing: $setupExe"
+    }
 }
 
 $installScript = Join-Path $package 'install.ps1'

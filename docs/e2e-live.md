@@ -62,21 +62,20 @@ What the lane automates, in order:
 
 ## Auth model (OAuth MCP + device ABT)
 
-- **MCP `/mcp`**: OAuth 2.1 authorization_code + PKCE (S256). Interactive login goes through
-  Aleph Portal (`ALEPH_PORTAL_URL`, production `https://portal.alephhq.tech`) — consent at
-  `/oauth/consent`, then portal calls mcp-server `POST /oauth/portal/approve` with shared
-  `PORTAL_APPROVE_SECRET`. Same path locally and in production. No static API token and no env
-  fake users.
+- **MCP `/mcp`**: OAuth 2.1 authorization_code + PKCE (S256). The **Aleph Gateway**
+  (`ALEPH_GATEWAY_URL`, production `https://gateway.alephhq.tech`) is the authorization server.
+  Interactive consent deep-links into the Windows **Aleph Connector** app
+  (`aleph-connector://oauth/consent`). MCP resource metadata advertises the gateway issuer.
+  No static API token and no env fake users.
 - **Device `/device`**: separate ABT credential in `identity.json` (HMAC
-  `${JWT_SECRET}:autocad-bridge-token`). Production / portal pairing writes Postgres
-  `device_grants` (see `apps/portal`). The live e2e lane opts into `ALEPH_DEV_IDENTITY=1` and
+  `${JWT_SECRET}:autocad-bridge-token`). Production pairing writes Postgres `device_grants`
+  via gateway `POST /devices/pair`. The live e2e lane opts into `ALEPH_DEV_IDENTITY=1` and
   file-backed grants in `apps/mcp-server/.aleph-dev/device-grants.json`. MCP access tokens cannot
   dial `/device`; device ABTs cannot call `/mcp`.
 
 `bun run mint:dev-credential` mints the **device** credential only (dev lane).
-`bun run oauth:access-token` obtains an MCP OAuth access_token for the live lane (PKCE via
-`/oauth/dev/code`, only when `ALEPH_DEV_IDENTITY=1`). For the interactive portal path, run
-`apps/portal` with matching `JWT_SECRET` / `PORTAL_APPROVE_SECRET` / `DATABASE_URL`.
+`bun run oauth:access-token` obtains an MCP OAuth access_token via gateway
+`/oauth/dev/code` when `ALEPH_DEV_IDENTITY=1` on the gateway.
 
 ## Safety properties kept from the harness
 

@@ -4,23 +4,34 @@ import {
   type AuthInfo,
   type OAuthTokenVerifier
 } from '@modelcontextprotocol/server'
-import {
-  McpOAuthAuthorizationServer,
-  resolveDeviceIdForCaller
-} from '@aleph-connector/identity'
+import { McpJwtService, resolveDeviceIdForCaller } from '@aleph-connector/identity'
 
+/**
+ * Verifies MCP access tokens minted by Aleph Gateway (shared JWT_SECRET, iss = gateway, aud = MCP resource).
+ */
 export class McpAccessTokenVerifier implements OAuthTokenVerifier {
-  constructor(private readonly oauth: McpOAuthAuthorizationServer) {}
+  private readonly jwt: McpJwtService
+
+  constructor(
+    private readonly gatewayIssuerUrl: string,
+    private readonly resourceUrl: string,
+    jwtSecret: string
+  ) {
+    this.jwt = new McpJwtService(jwtSecret)
+  }
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const verified = this.oauth.verifyAccessToken(token)
-    if (!verified) {
+    const claims = this.jwt.verify(token, {
+      issuer: this.gatewayIssuerUrl,
+      audience: this.resourceUrl
+    })
+    if (!claims) {
       throw new OAuthError(OAuthErrorCode.InvalidToken, 'invalid_token')
     }
 
     let deviceId: string
     try {
-      deviceId = await resolveDeviceIdForCaller(verified.workspaceId, verified.userId)
+      deviceId = await resolveDeviceIdForCaller(claims.workspace_id, claims.sub)
     } catch (err) {
       throw new OAuthError(
         OAuthErrorCode.InvalidToken,
@@ -30,13 +41,13 @@ export class McpAccessTokenVerifier implements OAuthTokenVerifier {
 
     return {
       token,
-      clientId: verified.clientId,
-      scopes: verified.scopes,
-      expiresAt: verified.expiresAt,
+      clientId: claims.client_id,
+      scopes: claims.scope.split(/\s+/).filter(Boolean),
+      expiresAt: claims.exp,
       extra: {
         deviceId,
-        userId: verified.userId,
-        workspaceId: verified.workspaceId
+        userId: claims.sub,
+        workspaceId: claims.workspace_id
       }
     }
   }
