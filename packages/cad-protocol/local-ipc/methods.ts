@@ -1389,6 +1389,49 @@ export type EntityOperation =
       update: Omit<EntityUpdateParams, 'documentName' | 'idempotencyKey' | 'view'>
       id?: string
     }
+  /** #23 — parallel curve(s) from an existing curve. */
+  | {
+      op: 'offset'
+      offset: { handle: string; distance: number; replace?: boolean; layer?: string }
+      id?: string
+    }
+  /** #23 — split a curve at 1–2 points. */
+  | {
+      op: 'break'
+      break: {
+        handle: string
+        points: Array<{ x: number; y: number; z?: number } | [number, number] | [number, number, number]>
+        replace?: boolean
+      }
+      id?: string
+    }
+  /** #23 — keep one side of a curve after a cut point. */
+  | {
+      op: 'trim'
+      trim: {
+        handle: string
+        cutPoint: { x: number; y: number; z?: number } | [number, number] | [number, number, number]
+        keepPoint: { x: number; y: number; z?: number } | [number, number] | [number, number, number]
+      }
+      id?: string
+    }
+  /** #23 — lengthen a curve to a boundary curve. */
+  | {
+      op: 'extend'
+      extend: { handle: string; boundaryHandle: string; end?: 'start' | 'end' | 'both' }
+      id?: string
+    }
+  /** #23 — fillet two lines or a polyline vertex. */
+  | {
+      op: 'fillet'
+      fillet: {
+        radius: number
+        handles?: [string, string]
+        polylineHandle?: string
+        vertexIndex?: number
+      }
+      id?: string
+    }
 
 export interface OperationsApplyParams {
   operations: EntityOperation[]

@@ -51,8 +51,8 @@ namespace CadAi.Bridge.Device
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new InvalidOperationException(
-                    $"No device token is provisioned for \"{deviceId}\". Sign in to Aleph Desktop and " +
-                    "install or repair the AutoCAD integration so Desktop can provision this Bridge, " +
+                    $"No device token is provisioned for \"{deviceId}\". Sign in to Aleph Connector and " +
+                    "install or repair the AutoCAD integration so Connector can provision this Bridge, " +
                     "or set CADAI_DEVICE_TOKEN explicitly for local development. Identity file: \"{identityPath}\".");
             }
 

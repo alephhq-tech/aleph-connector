@@ -115,6 +115,32 @@ namespace CadAI.AutoCAD.RpcHandlers
                                     }
                                 };
                                 break;
+                            case "offset":
+                                stepRefs = CurveEditHandlers.OffsetOne(
+                                    tr, db,
+                                    op.Offset ?? throw PluginExceptions.InvalidGeometry("offset op requires \"offset\"."),
+                                    doc.Name);
+                                break;
+                            case "break":
+                                stepRefs = CurveEditHandlers.BreakOne(
+                                    tr, db,
+                                    op.Break ?? throw PluginExceptions.InvalidGeometry("break op requires \"break\"."));
+                                break;
+                            case "trim":
+                                stepRefs = CurveEditHandlers.TrimOne(
+                                    tr, db,
+                                    op.Trim ?? throw PluginExceptions.InvalidGeometry("trim op requires \"trim\"."));
+                                break;
+                            case "extend":
+                                stepRefs = CurveEditHandlers.ExtendOne(
+                                    tr, db,
+                                    op.Extend ?? throw PluginExceptions.InvalidGeometry("extend op requires \"extend\"."));
+                                break;
+                            case "fillet":
+                                stepRefs = CurveEditHandlers.FilletOne(
+                                    tr, db,
+                                    op.Fillet ?? throw PluginExceptions.InvalidGeometry("fillet op requires \"fillet\"."));
+                                break;
                             default:
                                 throw PluginExceptions.InvalidGeometry($"Unknown batch op \"{op.Op}\".");
                         }

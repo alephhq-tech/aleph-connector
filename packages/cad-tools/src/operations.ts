@@ -5,7 +5,7 @@ import {
   entityTransformParams,
   entityUpdateParams
 } from './entity.js'
-import { batchStepId, layerName } from './geometry.js'
+import { batchStepId, entityHandle, layerName, point3d } from './geometry.js'
 import { viewOverride } from './view.js'
 
 /** A batch-local step label, referenced by later steps as `"@id"` (#19). */
@@ -19,12 +19,59 @@ const stepId = batchStepId
       'anything is sent to AutoCAD.'
   )
 
+const curveOffsetParams = z.object({
+  handle: entityHandle,
+  distance: z.number().refine((v) => v !== 0, 'offset.distance must not be 0'),
+  replace: z
+    .boolean()
+    .optional()
+    .describe('Erase the source after creating offsets (CadAI-owned sources only).'),
+  layer: layerName.optional()
+})
+
+const curveBreakParams = z.object({
+  handle: entityHandle,
+  points: z.array(point3d).min(1).max(2),
+  replace: z.boolean().optional().default(true)
+})
+
+const curveTrimParams = z.object({
+  handle: entityHandle,
+  cutPoint: point3d,
+  keepPoint: point3d
+})
+
+const curveExtendParams = z.object({
+  handle: entityHandle,
+  boundaryHandle: entityHandle,
+  end: z.enum(['start', 'end', 'both']).optional().default('end')
+})
+
+const curveFilletParams = z
+  .object({
+    radius: z.number().positive(),
+    handles: z.array(entityHandle).length(2).optional(),
+    polylineHandle: entityHandle.optional(),
+    vertexIndex: z.number().int().min(0).optional()
+  })
+  .refine(
+    (v) =>
+      (v.handles != null && v.polylineHandle == null) ||
+      (v.polylineHandle != null && v.vertexIndex != null && v.handles == null),
+    { message: 'fillet requires handles:[a,b] XOR polylineHandle+vertexIndex' }
+  )
+
 /** One step of an operations.apply batch — reuses the same per-kind shapes entity.* uses. */
 export const entityOperation = z.discriminatedUnion('op', [
   z.object({ op: z.literal('create'), entity: createEntityParams, id: stepId }),
   z.object({ op: z.literal('erase'), ...entityEraseParams.shape, id: stepId }),
   z.object({ op: z.literal('transform'), transform: entityTransformParams, id: stepId }),
-  z.object({ op: z.literal('update'), update: entityUpdateParams, id: stepId })
+  z.object({ op: z.literal('update'), update: entityUpdateParams, id: stepId }),
+  z.object({ op: z.literal('offset'), offset: curveOffsetParams, id: stepId }),
+  z.object({ op: z.literal('break'), break: curveBreakParams, id: stepId }),
+  z.object({ op: z.literal('trim'), trim: curveTrimParams, id: stepId }),
+  z.object({ op: z.literal('extend'), extend: curveExtendParams, id: stepId }),
+  z.object({ op: z.literal('fillet'), fillet: curveFilletParams, id: stepId })
 ])
 
 export const operationsApplyParams = z.object({

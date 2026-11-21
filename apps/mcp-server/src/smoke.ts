@@ -195,7 +195,7 @@ async function main(): Promise<void> {
 
   const resources = await client.listResources()
   const uris = resources.resources.map((r) => r.uri).sort()
-  assert.deepStrictEqual(uris, [
+  const draftingUris = [
     'autocad://guide/drafting/SKILL.md',
     'autocad://guide/drafting/evals/cases.md',
     'autocad://guide/drafting/references/annotations.md',
@@ -212,7 +212,20 @@ async function main(): Promise<void> {
     'autocad://guide/drafting/references/sources.md',
     'autocad://guide/drafting/references/tool-playbook.md',
     'autocad://guide/drafting/references/units-and-scale.md'
-  ])
+  ]
+  for (const uri of draftingUris) {
+    assert.ok(uris.includes(uri), `missing drafting resource ${uri}`)
+  }
+  for (const skill of [
+    'pccc-fire-alarm-design',
+    'pccc-sprinkler-design',
+    'pccc-pipe-routing',
+    'pccc-hydraulic-calculation'
+  ]) {
+    const uri = `autocad://guide/pccc/${skill}/SKILL.md`
+    assert.ok(uris.includes(uri), `missing PCCC resource ${uri}`)
+  }
+  assert.match(instructions, /pccc_fire_alarm_overlay/)
   const skillResource = await client.readResource({ uri: 'autocad://guide/drafting/SKILL.md' })
   const skillContent = skillResource.contents[0]
   assert.ok(skillContent && 'text' in skillContent, 'SKILL.md resource should be text')

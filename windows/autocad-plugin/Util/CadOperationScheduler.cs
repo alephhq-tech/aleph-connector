@@ -529,6 +529,69 @@ namespace CadAI.AutoCAD.Util
                                                     }
                                                 };
                                                 break;
+                                            case "offset":
+                                            {
+                                                var offset = op.Offset ?? throw PluginExceptions.InvalidGeometry("offset op requires \"offset\".");
+                                                stepRefs = CurveEditHandlers.OffsetOne(tr, db, offset, currentDoc.Name);
+                                                foreach (var r in stepRefs) createdHandles.Add(r.Handle);
+                                                if (offset.Replace && !string.IsNullOrWhiteSpace(offset.Handle))
+                                                {
+                                                    // Source erased — capture was optional; journal as created-only for new curves.
+                                                }
+                                                break;
+                                            }
+                                            case "break":
+                                            {
+                                                var br = op.Break ?? throw PluginExceptions.InvalidGeometry("break op requires \"break\".");
+                                                stepRefs = CurveEditHandlers.BreakOne(tr, db, br);
+                                                foreach (var r in stepRefs) createdHandles.Add(r.Handle);
+                                                break;
+                                            }
+                                            case "trim":
+                                            {
+                                                var trim = op.Trim ?? throw PluginExceptions.InvalidGeometry("trim op requires \"trim\".");
+                                                stepRefs = CurveEditHandlers.TrimOne(tr, db, trim);
+                                                foreach (var r in stepRefs) createdHandles.Add(r.Handle);
+                                                break;
+                                            }
+                                            case "extend":
+                                            {
+                                                var ext = op.Extend ?? throw PluginExceptions.InvalidGeometry("extend op requires \"extend\".");
+                                                if (HandleConvert.TryResolve(db, ext.Handle, out var extId) && !extId.IsErased)
+                                                {
+                                                    var beforeExt = EntityHandlers.ToDetail(
+                                                        tr, (Entity)tr.GetObject(extId, OpenMode.ForRead), includeBounds: false);
+                                                    stepRefs = CurveEditHandlers.ExtendOne(tr, db, ext);
+                                                    if (HandleConvert.TryResolve(db, ext.Handle, out var afterId) && !afterId.IsErased)
+                                                    {
+                                                        var afterExt = EntityHandlers.ToDetail(
+                                                            tr, (Entity)tr.GetObject(afterId, OpenMode.ForRead), includeBounds: false);
+                                                        modifiedPreImages.Add(new ModifiedEntityPreImage
+                                                        {
+                                                            Handle = beforeExt.Handle,
+                                                            Kind = beforeExt.Kind,
+                                                            Before = beforeExt,
+                                                            After = afterExt
+                                                        });
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    throw PluginExceptions.EntityNotFound(ext.Handle);
+                                                }
+                                                break;
+                                            }
+                                            case "fillet":
+                                            {
+                                                var fillet = op.Fillet ?? throw PluginExceptions.InvalidGeometry("fillet op requires \"fillet\".");
+                                                stepRefs = CurveEditHandlers.FilletOne(tr, db, fillet);
+                                                foreach (var r in stepRefs)
+                                                {
+                                                    if (!createdHandles.Contains(r.Handle))
+                                                        createdHandles.Add(r.Handle);
+                                                }
+                                                break;
+                                            }
                                             default:
                                                 throw PluginExceptions.InvalidGeometry($"Unknown batch op \"{op.Op}\".");
                                         }

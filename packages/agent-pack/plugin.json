@@ -1,0 +1,13 @@
+{
+  "id": "aleph-connector",
+  "name": "Aleph Connector",
+  "version": "0.1.0",
+  "description": "AutoCAD drafting + Vietnamese PCCC (fire alarm) skills for agent clients via Aleph MCP.",
+  "skills": [
+    "autocad-drafting",
+    "pccc-fire-alarm-design",
+    "pccc-sprinkler-design",
+    "pccc-pipe-routing",
+    "pccc-hydraulic-calculation"
+  ]
+}

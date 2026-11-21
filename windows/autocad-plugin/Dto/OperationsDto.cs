@@ -15,6 +15,12 @@ namespace CadAI.AutoCAD.Dto
         public EntityTransformRequest? Transform { get; set; }
         /// <summary>Patch an existing entity in place without replacing its handle.</summary>
         public EntityUpdateRequest? Update { get; set; }
+        /// <summary>#23 curve edits.</summary>
+        public EntityOffsetRequest? Offset { get; set; }
+        public EntityBreakRequest? Break { get; set; }
+        public EntityTrimRequest? Trim { get; set; }
+        public EntityExtendRequest? Extend { get; set; }
+        public EntityFilletRequest? Fillet { get; set; }
     }
 
     public sealed class OperationsApplyRequest

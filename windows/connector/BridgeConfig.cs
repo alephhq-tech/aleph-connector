@@ -71,8 +71,8 @@ namespace CadAi.Bridge
             if (gatewayUrlRaw is null)
             {
                 throw new InvalidOperationException(
-                    "No gateway URL is configured. Sign in to Aleph Desktop and install or repair " +
-                    "the AutoCAD integration so Desktop provisions this Bridge, or set " +
+                    "No gateway URL is configured. Sign in to Aleph Connector and install or repair " +
+                    "the AutoCAD integration so Connector provisions this Bridge, or set " +
                     "CADAI_GATEWAY_URL explicitly for local development.");
             }
 

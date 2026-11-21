@@ -10,7 +10,8 @@
   "scripts": {
     "check": "bun run typecheck",
     "typecheck": "tsc -b --pretty false",
-    "test": "bun test"
+    "test": "bun test",
+    "sync:agent-pack": "bun run --filter @aleph-connector/agent-pack sync"
   },
   "devDependencies": {
     "@types/bun": "latest",

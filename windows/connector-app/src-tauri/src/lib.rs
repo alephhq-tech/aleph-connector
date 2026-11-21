@@ -1,3 +1,4 @@
+mod agent_pack;
 mod agents;
 mod identity;
 mod install;
@@ -17,6 +18,12 @@ fn detect_agents() -> Vec<DetectedAgent> {
 #[tauri::command]
 fn write_mcp_config(kind: String, config_path: String, mcp_url: String) -> Result<String, String> {
     mcp_config::write_mcp_config(&kind, &config_path, &mcp_url)
+}
+
+/// Deploy AGENTS.md + skills into agent client directories (after MCP config is written).
+#[tauri::command]
+fn install_agent_pack(kinds: Vec<String>) -> Result<Vec<agent_pack::PackInstallResult>, String> {
+    agent_pack::install_pack_for_kinds(&kinds)
 }
 
 #[tauri::command]
@@ -160,6 +167,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             detect_agents,
             write_mcp_config,
+            install_agent_pack,
             install_autocad,
             uninstall_autocad,
             integration_status,

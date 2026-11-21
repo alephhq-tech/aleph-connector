@@ -451,30 +451,40 @@ export default function App() {
     }
   }
 
-  async function onInstallMcp() {
+  async function onInstallPlugin() {
     beginBusy("mcp");
     try {
-      let written = 0;
-      for (const agent of agents) {
-        if (!agent.selected) continue;
+      const selected = agents.filter((a) => a.selected);
+      if (selected.length === 0) {
+        const msg = "No agents selected.";
+        setStatus(msg);
+        showNotice("info", "Nothing to install", msg);
+        return;
+      }
+      for (const agent of selected) {
         const path = await invoke<string>("write_mcp_config", {
           kind: agent.kind,
           configPath: agent.configPath,
           mcpUrl,
         });
         appendLog(`MCP → ${agent.displayName}: ${path}`);
-        written += 1;
       }
-      const msg =
-        written === 0
-          ? "No agents selected."
-          : `Wrote MCP config for ${written} agent(s). OAuth opens Aleph Connector to approve.`;
+      const packResults = await invoke<
+        { kind: string; paths: string[] }[]
+      >("install_agent_pack", {
+        kinds: selected.map((a) => a.kind),
+      });
+      for (const r of packResults) {
+        appendLog(`Skills → ${r.kind}: ${r.paths.length} path(s)`);
+        for (const p of r.paths.slice(0, 6)) appendLog(`  ${p}`);
+      }
+      const msg = `Installed plugin (MCP + skills) for ${selected.length} agent(s). OAuth opens Aleph Connector to approve.`;
       setStatus(msg);
-      showNotice(written === 0 ? "info" : "ok", written === 0 ? "Nothing to install" : "MCP installed", msg);
+      showNotice("ok", "Plugin installed", msg);
     } catch (e) {
       const msg = String(e);
       setError(msg);
-      showNotice("err", "MCP install failed", msg);
+      showNotice("err", "Plugin install failed", msg);
     } finally {
       endBusy();
     }
@@ -490,7 +500,7 @@ export default function App() {
           : busyAction === "update"
             ? "Updating…"
             : busyAction === "mcp"
-              ? "Writing MCP…"
+              ? "Installing plugin…"
               : busy
                 ? "Working…"
                 : null;
@@ -720,8 +730,8 @@ export default function App() {
           <>
             <h2 className="section-title">Agents</h2>
             <p className="section-lead">
-              Select clients on this machine and write Aleph MCP into their config. OAuth completes
-              inside Connector.
+              Select clients on this machine. Install Plugin writes MCP config and deploys drafting +
+              PCCC skills (AGENTS.md). OAuth completes inside Connector.
             </p>
             <div className="agent-list">
               {agents.map((agent, idx) => (
@@ -746,8 +756,8 @@ export default function App() {
               ))}
             </div>
             <div className="actions">
-              <button className="btn btn-primary" disabled={busy} onClick={() => void onInstallMcp()}>
-                Install MCP
+              <button className="btn btn-primary" disabled={busy} onClick={() => void onInstallPlugin()}>
+                Install Plugin
               </button>
               <button className="btn" disabled={busy} onClick={() => void refreshAgents()}>
                 Refresh

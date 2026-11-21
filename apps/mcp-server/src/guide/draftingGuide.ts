@@ -2,6 +2,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
 import { portableInputSchema } from '../tools/portableSchema.js'
+import {
+  loadPcccGuide,
+  pcccTopicSlugs,
+  registerPcccGuide,
+  resolvePcccTopic,
+  type PcccGuide
+} from './pcccGuide.js'
 
 // The skill ships as plain files so it can also be installed into other agents unchanged; this
 // module serves those same files over MCP rather than keeping a second copy of the text.
@@ -23,6 +30,7 @@ interface DraftingGuide {
   body: string
   /** Short ruleset for the MCP `instructions` field, built from SKILL.md's "Rules" section. */
   instructions: string
+  pccc: PcccGuide
 }
 
 export function loadDraftingGuide(): DraftingGuide {
@@ -48,17 +56,23 @@ export function loadDraftingGuide(): DraftingGuide {
   if (!skill) throw new Error('skills/autocad-drafting/SKILL.md is missing')
   const body = skill.text.replace(/^---\n[\s\S]*?\n---\n+/, '')
 
+  const pccc = loadPcccGuide()
   const instructions = [
     "This server drives a live AutoCAD on the user's own machine.",
     `Before drawing, call the \`${TOOL_NAME}\` tool (or read the "${PROMPT_NAME}" prompt / the ${URI_ROOT}SKILL.md resource; references under ${URI_ROOT}references/).`,
+    pccc.instructionsLine,
     '',
     section(body, 'Rules')
   ].join('\n')
 
-  return { files, body, instructions }
+  return { files, body, instructions, pccc }
 }
 
-export function registerDraftingGuide(server: McpServer, guide: DraftingGuide): void {
+export interface DraftingGuideWithPccc extends DraftingGuide {
+  pccc: PcccGuide
+}
+
+export function registerDraftingGuide(server: McpServer, guide: DraftingGuideWithPccc): void {
   for (const file of guide.files) {
     const uri = `${URI_ROOT}${file.path}`
     server.registerResource(
@@ -78,6 +92,7 @@ export function registerDraftingGuide(server: McpServer, guide: DraftingGuide): 
     )
   }
 
+  registerPcccGuide(server, guide.pccc)
   registerGuideTool(server, guide)
 
   const references = guide.files
@@ -110,15 +125,17 @@ export function registerDraftingGuide(server: McpServer, guide: DraftingGuide): 
  * The same guide as a tool (#71): many MCP clients only surface tools and never show prompts or
  * resources to the model, so this is the one path to the skill that works everywhere.
  */
-function registerGuideTool(server: McpServer, guide: DraftingGuide): void {
+function registerGuideTool(server: McpServer, guide: DraftingGuideWithPccc): void {
   const topics = guide.files
     .filter((file) => file.path !== 'SKILL.md')
     .map((file) => ({
       slug: file.path.replace(/^(references|evals)\//, '').replace(/\.md$/, ''),
       file
     }))
-  const [firstTopic, ...otherTopics] = topics.map((topic) => topic.slug)
+  const [firstTopic] = topics.map((topic) => topic.slug)
   if (!firstTopic) throw new Error('skills/autocad-drafting/ has no .md files')
+  const pcccSlugs = pcccTopicSlugs(guide.pccc)
+  const allTopicHint = [...topics.map((t) => t.slug), ...pcccSlugs].join(' | ')
 
   server.registerTool(
     TOOL_NAME,
@@ -127,21 +144,27 @@ function registerGuideTool(server: McpServer, guide: DraftingGuide): void {
       description:
         'Read before drawing: how to plan and draw with these tools (units and scale, layers, ' +
         'radians, batching, verification, recovery). No topic returns the workflow and rules; ' +
-        `topic returns one reference: ${topics.map((topic) => topic.slug).join(' | ')}.`,
+        `topic returns one reference or PCCC skill: ${allTopicHint}.`,
       inputSchema: portableInputSchema(z.object({ topic: z.string().optional() })),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false }
     },
     async ({ topic }) => {
-      let resolvedFile = null
       if (topic) {
+        const pcccText = resolvePcccTopic(guide.pccc, topic)
+        if (pcccText) {
+          return { content: [{ type: 'text' as const, text: pcccText }] }
+        }
         const norm = topic.replace(/^(references|evals)\//, '').replace(/\.md$/, '')
-        resolvedFile = topics.find(
+        const resolvedFile = topics.find(
           (entry) => entry.slug === topic || entry.slug === norm || entry.file.path === topic
         )?.file
+        if (resolvedFile) {
+          return { content: [{ type: 'text' as const, text: resolvedFile.text }] }
+        }
       }
-      const text = resolvedFile
-        ? resolvedFile.text
-        : `${guide.body}\nReference topics (call ${TOOL_NAME} with topic): ${topics.map((entry) => entry.slug).join(', ')}\n`
+      const text =
+        `${guide.body}\nReference topics (call ${TOOL_NAME} with topic): ${topics.map((entry) => entry.slug).join(', ')}\n` +
+        `PCCC topics: ${pcccSlugs.join(', ')}\n`
       return { content: [{ type: 'text' as const, text }] }
     }
   )

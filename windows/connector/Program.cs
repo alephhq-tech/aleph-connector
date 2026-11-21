@@ -104,9 +104,9 @@ namespace CadAi.Bridge
             };
             // With the tray gone there is no local confirmation path: a staged update stays staged
             // (staging changes nothing a running AutoCAD or the live exe can observe) until Aleph
-            // Desktop confirms it — see autocad.rs's `autocad_confirm_update`.
+            // Connector confirms it (pending-activation.json).
             updateCoordinator.UpdateAvailable += version =>
-                logger.LogInformation($"plugin update {version} staged; waiting for confirmation from Aleph Desktop");
+                logger.LogInformation($"plugin update {version} staged; waiting for confirmation from Aleph Connector");
 
             using var shutdownCts = new CancellationTokenSource();
             updateCoordinator.SelfUpdateStaged += () =>

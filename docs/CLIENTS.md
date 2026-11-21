@@ -4,7 +4,22 @@ Aleph MCP speaks **Streamable HTTP** at your public MCP URL (e.g. `https://mcp.a
 
 Interactive login goes through **Aleph Gateway** (`https://gateway.alephhq.tech`) and deep-links into the Windows **Aleph Connector** app for consent (`aleph-connector://oauth/consent`). MCP resource metadata advertises the gateway as the authorization server.
 
-Install and configure agents with **Aleph Connector** (Setup): sign in → Install AutoCAD → Install MCP for detected agents.
+Install and configure agents with **Aleph Connector**: sign in → Install AutoCAD → **Install Plugin** for selected agents.
+
+**Install Plugin** does two things:
+
+1. Writes the MCP server URL into each client’s config (same as the old “Install MCP”).
+2. Deploys the **agent pack** (`packages/agent-pack`): `AGENTS.md` + skills (`autocad-drafting`, `pccc-fire-alarm-design`, …) into that client’s skill directories.
+
+| Client | MCP config | Skills / instructions |
+|--------|------------|------------------------|
+| Cursor | `%USERPROFILE%\.cursor\mcp.json` | `%USERPROFILE%\.cursor\skills\` + `.cursor\rules\aleph-connector.mdc` |
+| Antigravity | `%USERPROFILE%\.gemini\config\mcp_config.json` | `%USERPROFILE%\.gemini\config\plugins\aleph-connector\` (+ mirrored skills under `config\skills`) |
+| Claude Desktop / Code | Claude Desktop JSON / `claude mcp add` | `%USERPROFILE%\.claude\skills\` |
+| VS Code | `%USERPROFILE%\.vscode\mcp.json` | `%USERPROFILE%\.vscode\skills\aleph-connector\` |
+| Codex CLI | Codex MCP settings | `%USERPROFILE%\.codex\skills\` |
+
+PCCC / drafting skills are also exposed over MCP as resources (`autocad://guide/drafting/…`, `autocad://guide/pccc/…`) and via the `guide` tool topics (`pccc`, `pccc-fire-alarm-design`, …).
 
 ## Cursor
 
@@ -36,7 +51,7 @@ Complete the OAuth browser flow when Cursor connects (Approve in Aleph Connector
 }
 ```
 
-In Antigravity: MCP Servers → Manage → Refresh after Connector writes the file. OAuth opens Aleph Connector for consent.
+In Antigravity: **⋯ → MCP Servers** after Connector writes the file. OAuth opens Aleph Connector for consent.
 
 ## Claude Desktop
 

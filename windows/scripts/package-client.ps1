@@ -862,6 +862,30 @@ if ($SkipConnectorBuild) {
     Write-Host "  AlephConnector.exe -> $OutputDir"
 }
 
+# Agent pack (AGENTS.md + drafting/PCCC skills) next to AlephConnector.exe for Install Plugin.
+$monorepoRoot = Resolve-Path (Join-Path $repoRoot '..')
+$agentPackSrc = Join-Path $monorepoRoot 'packages/agent-pack'
+if (Test-Path (Join-Path $agentPackSrc 'plugin.json')) {
+    Write-Host "`n--- Syncing + packaging agent-pack ---"
+    Push-Location $agentPackSrc
+    try {
+        & bun run sync
+        if ($LASTEXITCODE -ne 0) { throw "agent-pack sync failed." }
+    } finally {
+        Pop-Location
+    }
+    $agentPackDest = Join-Path $OutputDir 'agent-pack'
+    if (Test-Path $agentPackDest) { Remove-Item -Recurse -Force $agentPackDest }
+    New-Item -ItemType Directory -Path $agentPackDest | Out-Null
+    Copy-Item -Force (Join-Path $agentPackSrc 'plugin.json') $agentPackDest
+    Copy-Item -Force (Join-Path $agentPackSrc 'AGENTS.md') $agentPackDest
+    Copy-Item -Force (Join-Path $agentPackSrc 'README.md') $agentPackDest
+    Copy-Item -Recurse -Force (Join-Path $agentPackSrc 'skills') (Join-Path $agentPackDest 'skills')
+    Write-Host "  agent-pack -> $agentPackDest"
+} else {
+    Write-Host "`n--- WARNING: packages/agent-pack missing; Install Plugin will need ALEPH_AGENT_PACK_DIR ---"
+}
+
 $validator = Join-Path $repoRoot 'scripts/Test-PackagedBundle.ps1'
 $requiredGenerations = if ($RequireAllGenerations) { @('net48', 'net8.0-windows', 'net10.0-windows') } else { @() }
 $validatorArgs = @{

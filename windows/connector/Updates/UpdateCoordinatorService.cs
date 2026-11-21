@@ -105,7 +105,7 @@ namespace CadAi.Bridge.Updates
         /// confirmation before it's actually applied. The Bridge never installs an update nobody
         /// approved — staging alone changes nothing a running AutoCAD or the live Bridge exe can
         /// observe. The Bridge has no UI of its own anymore: `health.json` carries
-        /// <see cref="PendingUpdateVersion"/> so Aleph Desktop renders the choice, and the user's
+        /// <see cref="PendingUpdateVersion"/> so Aleph Connector can render the choice, and the user's
         /// answer arrives as a rewritten `pending-activation.json` marker that
         /// <see cref="ConfirmationLoopAsync"/> picks up. Fires again (with the same version) on
         /// every subsequent check while the update remains unconfirmed, and again after a Bridge
@@ -122,7 +122,7 @@ namespace CadAi.Bridge.Updates
 
         /// <summary>
         /// Applies the already-staged update when confirmation arrives from outside this process:
-        /// Aleph Desktop rewrites the marker's `confirmed` flag, and the next
+        /// Aleph Connector rewrites the marker's `confirmed` flag, and the next
         /// <see cref="ConfirmationLoopAsync"/> tick adopts it. Applies through the same safety path
         /// a self-triggered install would use (a Bridge self-update swaps and relaunches
         /// immediately; a plugin update activates at once if AutoCAD isn't running, or waits for it
@@ -142,7 +142,7 @@ namespace CadAi.Bridge.Updates
                 if (_userConfirmed) return;
                 _userConfirmed = true;
                 _stagedSelfUpdatePath = marker.SelfUpdatePath;
-                _logger.LogInformation($"update to {_stagedPluginVersion} confirmed from Aleph Desktop; applying");
+                _logger.LogInformation($"update to {_stagedPluginVersion} confirmed from Aleph Connector; applying");
                 await ApplyConfirmedUpdateAsync(ct).ConfigureAwait(false);
             }
             finally
@@ -161,7 +161,7 @@ namespace CadAi.Bridge.Updates
             if (!_standaloneUpdatesEnabled)
             {
                 if (File.Exists(PendingActivationMarkerPath))
-                    _logger.LogWarning("Ignoring an old standalone update marker: only signed Aleph Desktop bundled updates are enabled.");
+                    _logger.LogWarning("Ignoring an old standalone update marker: only signed Aleph Connector bundled updates are enabled.");
                 return;
             }
             ResumePendingActivationFromDisk();
@@ -222,7 +222,7 @@ namespace CadAi.Bridge.Updates
         {
             if (!_standaloneUpdatesEnabled)
             {
-                _logger.LogWarning("gateway requested an update, but standalone updates are disabled; update via a signed Aleph Desktop release.");
+                _logger.LogWarning("gateway requested an update, but standalone updates are disabled; update via a signed Aleph Connector release.");
                 return;
             }
             _ = RunCheckAsync(_cts?.Token ?? CancellationToken.None);
@@ -387,7 +387,7 @@ namespace CadAi.Bridge.Updates
             _channelUnavailableReason = reason;
             _logger.LogWarning(
                 $"Standalone CAD update channel unavailable: {reason}. This is expected until an operator " +
-                $"publishes a signed release via release-desktop.yml; normal clients update through Aleph Desktop.",
+                $"publishes a signed release via release-connector.yml; normal clients update through Aleph Connector.",
                 ex);
         }
 
@@ -395,7 +395,7 @@ namespace CadAi.Bridge.Updates
         {
             if (_elevatedBundleLogged) return;
             _elevatedBundleLogged = true;
-            _logger.LogWarning($"the installed bundle at \"{_config.BundleRoot}\" is only writable with elevated rights, so this Bridge cannot stage plugin updates into it; update it through Aleph Desktop instead");
+            _logger.LogWarning($"the installed bundle at \"{_config.BundleRoot}\" is only writable with elevated rights, so this Bridge cannot stage plugin updates into it; update it through Aleph Connector instead");
         }
 
         /// <summary>
