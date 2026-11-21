@@ -15,6 +15,7 @@ coverage/
 # Local dev-lane state: file-backed device grants and minted credentials. Never commit.
 .arcdio-dev/
 .aleph-dev/
+.local/
 
 # Live E2E lane output artifact (rewritten each harness run; regenerate, don't commit).
 e2e-live-report.json
