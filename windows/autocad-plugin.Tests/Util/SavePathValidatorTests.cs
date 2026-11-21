@@ -1,3 +1,4 @@
+using System.IO;
 using CadAI.AutoCAD.Util;
 using Xunit;
 
@@ -91,6 +92,16 @@ public class SavePathValidatorTests
         Assert.Equal(
             SavePathValidator.Rejection.UncOrDevicePath,
             SavePathValidator.Validate(@"\\server\share\plan.dwg", null).Reason);
+    }
+
+    [Fact]
+    public void TempDirectory_IsRejectedEvenForNeverSavedDrawing()
+    {
+        var tempDwg = Path.Combine(Path.GetTempPath(), "SUNLAND_FA.dwg");
+        var result = SavePathValidator.Validate(tempDwg, null);
+
+        Assert.False(result.Allowed);
+        Assert.Equal(SavePathValidator.Rejection.OutsideAllowedRoot, result.Reason);
     }
 
     [Fact]

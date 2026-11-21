@@ -24,11 +24,25 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
         if ty.is_dir() {
             copy_dir_all(&entry.path(), &dest)?;
         } else {
+            // Overwrite in place — never require deleting a locked destination tree first
+            // (Antigravity often holds ~/.gemini/config/plugins/aleph-connector open).
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+            }
             fs::copy(entry.path(), &dest)
                 .map_err(|e| format!("copy {} → {}: {e}", entry.path().display(), dest.display()))?;
         }
     }
     Ok(())
+}
+
+/// Best-effort remove; ignore lock errors (os error 32) so install can overwrite instead.
+fn try_remove_dir_all(path: &Path) {
+    if !path.exists() {
+        return;
+    }
+    let _ = fs::remove_dir_all(path);
 }
 
 fn write_text(path: &Path, contents: &str) -> Result<(), String> {
@@ -94,7 +108,7 @@ pub fn resolve_pack_root() -> Result<PathBuf, String> {
     }
 
     Err(
-        "agent-pack not found (expected packages/agent-pack with plugin.json + skills/). Run: bun run --filter @aleph-connector/agent-pack sync"
+        "agent-pack not found (expected packages/agent-pack with plugin.json + skills/, or agent-pack/ next to AlephConnector.exe)"
             .into(),
     )
 }
@@ -138,10 +152,8 @@ fn copy_skills_into(dest_skills_root: &Path, skill_dirs: &[PathBuf]) -> Result<V
             .file_name()
             .ok_or_else(|| "skill dir has no name".to_string())?;
         let dest = dest_skills_root.join(name);
-        if dest.exists() {
-            fs::remove_dir_all(&dest)
-                .map_err(|e| format!("remove {}: {e}", dest.display()))?;
-        }
+        // Prefer merge/overwrite; try_remove only when nothing has the folder open.
+        try_remove_dir_all(&dest);
         copy_dir_all(src, &dest)?;
         written.push(dest.to_string_lossy().into());
     }
@@ -176,10 +188,9 @@ pub fn install_for_kind(kind: &str, pack: &Path) -> Result<PackInstallResult, St
                 .join("config")
                 .join("plugins")
                 .join("aleph-connector");
-            if plugin_root.exists() {
-                fs::remove_dir_all(&plugin_root)
-                    .map_err(|e| format!("remove {}: {e}", plugin_root.display()))?;
-            }
+            // Antigravity often locks this folder while running — overwrite in place, do not
+            // fail the whole install on remove_dir_all (os error 32).
+            try_remove_dir_all(&plugin_root);
             fs::create_dir_all(&plugin_root)
                 .map_err(|e| format!("mkdir {}: {e}", plugin_root.display()))?;
             write_text(&plugin_root.join("plugin.json"), &plugin)?;

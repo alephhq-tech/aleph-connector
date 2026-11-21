@@ -76,6 +76,10 @@ namespace CadAI.AutoCAD.Util
             if (!full.EndsWith(".dwg", StringComparison.OrdinalIgnoreCase))
                 return Result.Reject(Rejection.NotDwg);
 
+            // Agents must not park project work in OS temp — use the user's project folder.
+            if (IsTempPath(full))
+                return Result.Reject(Rejection.OutsideAllowedRoot);
+
             if (string.IsNullOrEmpty(currentDrawingDirectory))
                 return Result.Ok(full);
 
@@ -88,6 +92,39 @@ namespace CadAI.AutoCAD.Util
                 return Result.Reject(Rejection.OutsideAllowedRoot);
 
             return Result.Ok(full);
+        }
+
+        private static bool IsTempPath(string fullPath)
+        {
+            try
+            {
+                var candidates = new[]
+                {
+                    Path.GetTempPath(),
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) is { Length: > 0 } local
+                        ? Path.Combine(local, "Temp")
+                        : null,
+                    Environment.GetEnvironmentVariable("TMP"),
+                    Environment.GetEnvironmentVariable("TEMP"),
+                };
+                foreach (var raw in candidates)
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    var root = Path.GetFullPath(raw)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    if (fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                        || fullPath.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(Path.GetDirectoryName(fullPath), root, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through — other gates still apply.
+            }
+            return false;
         }
     }
 }

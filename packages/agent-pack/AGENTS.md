@@ -2,6 +2,13 @@
 
 You drive a live AutoCAD on the user's machine through the **aleph-connector** MCP server.
 
+## Work on the user's drawing (required)
+
+1. If the user names a DWG path (or it is already open), **open/pin that file** — `drawing` → `open` / `use` / `activate` — before any mutation. Never invent a second file under `%TEMP%` / `AppData\Local\Temp`.
+2. Draw **in that document** at existing world coordinates. Do not `drawing` → `new` or `save` to a temp/`*_FA.dwg` sidecopy unless the user explicitly asked for a new file and gave the path.
+3. After meaningful edits, `drawing` → `activate` the pinned tab (and `view` → `zoom_extents` only if needed) so the user can see the live AutoCAD window.
+4. Save only when asked, only to a path they gave (or QSAVE of the open file). Never save to Temp.
+
 ## Before drawing
 
 1. Call the MCP `guide` tool (or read `autocad://guide/drafting/SKILL.md`).

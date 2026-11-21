@@ -863,17 +863,11 @@ if ($SkipConnectorBuild) {
 }
 
 # Agent pack (AGENTS.md + drafting/PCCC skills) next to AlephConnector.exe for Install Plugin.
+# Skills are committed under packages/agent-pack/skills — no sync step at package time.
 $monorepoRoot = Resolve-Path (Join-Path $repoRoot '..')
 $agentPackSrc = Join-Path $monorepoRoot 'packages/agent-pack'
-if (Test-Path (Join-Path $agentPackSrc 'plugin.json')) {
-    Write-Host "`n--- Syncing + packaging agent-pack ---"
-    Push-Location $agentPackSrc
-    try {
-        & bun run sync
-        if ($LASTEXITCODE -ne 0) { throw "agent-pack sync failed." }
-    } finally {
-        Pop-Location
-    }
+if ((Test-Path (Join-Path $agentPackSrc 'plugin.json')) -and (Test-Path (Join-Path $agentPackSrc 'skills'))) {
+    Write-Host "`n--- Packaging agent-pack ---"
     $agentPackDest = Join-Path $OutputDir 'agent-pack'
     if (Test-Path $agentPackDest) { Remove-Item -Recurse -Force $agentPackDest }
     New-Item -ItemType Directory -Path $agentPackDest | Out-Null

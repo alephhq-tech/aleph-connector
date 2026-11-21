@@ -8,13 +8,7 @@ bun install
 bun run tauri:dev
 ```
 
-**Agents → Install Plugin** writes MCP config **and** deploys `packages/agent-pack` (AGENTS.md + drafting/PCCC skills) into each selected client. Sync the pack first if skills are missing:
-
-```bash
-bun run --filter @aleph-connector/agent-pack sync
-```
-
-Override pack location with `ALEPH_AGENT_PACK_DIR` if needed. Packaged clients ship `agent-pack/` next to `AlephConnector.exe`.
+**Agents → Install Plugin** writes MCP config **and** deploys `packages/agent-pack` (AGENTS.md + drafting/PCCC skills) into each selected client. Skills are committed in-repo; packaged clients ship `agent-pack/` next to `AlephConnector.exe`. Override with `ALEPH_AGENT_PACK_DIR` if needed.
 
 Release build:
 

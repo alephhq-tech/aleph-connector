@@ -2,13 +2,13 @@
 
 Versioned bundle of **AGENTS.md** + skills for Cursor, Antigravity, Claude, VS Code, and Codex.
 
-## Sync
+## Skills
+
+`skills/` is committed. Optional refresh from canonical trees (not part of package/deploy):
 
 ```bash
 bun run --filter @aleph-connector/agent-pack sync
 ```
-
-Copies (does not fork) drafting + PCCC skills from their canonical trees. Run before packaging the Windows client.
 
 ## Install
 
