@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { entityOperation } from '@aleph-connector/cad-tools'
-import { planHighwayFireAlarm, resolvePcccBlocks } from '@aleph-connector/engineering'
+import { resolvePcccBlocks } from '@aleph-connector/engineering'
+import { planHighwayFireAlarm } from '@aleph-connector/engineering/src/pccc/fire-alarm-planner.js'
 import type { FireAlarmRoomInput } from '@aleph-connector/engineering'
 
 /**

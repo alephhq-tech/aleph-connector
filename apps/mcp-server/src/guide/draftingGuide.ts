@@ -28,7 +28,7 @@ interface DraftingGuide {
   files: GuideFile[]
   /** SKILL.md without its YAML frontmatter. */
   body: string
-  /** Short ruleset for the MCP `instructions` field, built from SKILL.md's "Rules" section. */
+  /** Short pointer for the MCP `instructions` field; the rules themselves live in SKILL.md. */
   instructions: string
   pccc: PcccGuide
 }
@@ -59,10 +59,8 @@ export function loadDraftingGuide(): DraftingGuide {
   const pccc = loadPcccGuide()
   const instructions = [
     "This server drives a live AutoCAD on the user's own machine.",
-    `Before drawing, call the \`${TOOL_NAME}\` tool (or read the "${PROMPT_NAME}" prompt / the ${URI_ROOT}SKILL.md resource; references under ${URI_ROOT}references/).`,
-    pccc.instructionsLine,
-    '',
-    section(body, 'Rules')
+    `Before drawing, call the \`${TOOL_NAME}\` tool (or read the "${PROMPT_NAME}" prompt / the ${URI_ROOT}SKILL.md resource; references under ${URI_ROOT}references/). That skill is the single source of the drafting workflow and rules; do not restate them here.`,
+    pccc.instructionsLine
   ].join('\n')
 
   return { files, body, instructions, pccc }
@@ -172,15 +170,4 @@ function registerGuideTool(server: McpServer, guide: DraftingGuideWithPccc): voi
 
 function firstHeading(markdown: string, fallback: string): string {
   return /^# (.+)$/m.exec(markdown)?.[1]?.trim() ?? fallback
-}
-
-function section(markdown: string, heading: string): string {
-  const marker = `\n## ${heading}\n`
-  const start = markdown.indexOf(marker)
-  if (start === -1) {
-    throw new Error(`skills/autocad-drafting/SKILL.md has no "## ${heading}" section`)
-  }
-  const rest = markdown.slice(start + marker.length)
-  const end = rest.search(/\n## /)
-  return (end === -1 ? rest : rest.slice(0, end)).trim()
 }
