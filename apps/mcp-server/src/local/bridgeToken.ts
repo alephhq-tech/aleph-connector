@@ -12,11 +12,13 @@ import {
 } from '@aleph-connector/identity'
 
 /**
- * Development credential issuer/verifier for the live AutoCAD E2E lane.
+ * Local device credential issuer/verifier for the first-party Windows Bridge.
  *
- * Opt-in via `ALEPH_DEV_IDENTITY=1`. Wire format and grant-generation recheck come from
- * `@aleph-connector/identity` `AbtTokenService`; only secret custody and grant durability are file-backed
- * stand-ins for local bring-up.
+ * The local runtime owns the secret and the grant file, but the wire format and the
+ * grant-generation recheck come from `@aleph-connector/identity` `AbtTokenService` — the
+ * same rules the cloud gateway enforced: signing with the wrong key must fail, a revoked
+ * generation must stop authorizing, and a caller that merely knows a deviceId must be
+ * denied. Socket reachability is never authorization.
  */
 
 const GRANT_FILE_NAME = 'device-grants.json'
@@ -33,9 +35,9 @@ interface GrantRow {
 export { GrantDeniedError }
 
 /**
- * File-backed grant store for dev runs, mirroring the production `device_grants` semantics the
- * gateway actually enforces: first-claim ownership, deny-a-foreign-deviceId, and a generation that
- * moves on revoke so previously minted tokens stop authorizing.
+ * File-backed grant store, mirroring the production `device_grants` semantics:
+ * first-claim ownership, deny-a-foreign-deviceId, and a generation that moves on revoke
+ * so previously minted tokens stop authorizing.
  */
 export class JsonFileGrantStore implements MutableDeviceGrantStore {
   constructor(private readonly filePath: string) {}
@@ -164,8 +166,8 @@ export class JsonFileGrantStore implements MutableDeviceGrantStore {
   }
 }
 
-/** Thin wrapper: ABT crypto from identity + file-backed grants for the live E2E lane. */
-export class DevBridgeTokenService implements DeviceCredentialService {
+/** Thin wrapper: ABT crypto from identity + file-backed local grants. */
+export class LocalBridgeTokenService implements DeviceCredentialService {
   private readonly abt: AbtTokenService
 
   constructor(
@@ -173,14 +175,12 @@ export class DevBridgeTokenService implements DeviceCredentialService {
     grants: JsonFileGrantStore
   ) {
     if (jwtSecret.trim().length < 16) {
-      throw new Error(
-        'ALEPH_DEV_IDENTITY needs a JWT_SECRET of at least 16 characters — the dev lane still signs and verifies, it does not skip auth.'
-      )
+      throw new Error('the local runtime needs a JWT secret of at least 16 characters')
     }
     this.abt = new AbtTokenService(jwtSecret, grants)
   }
 
-  mint(
+  async mint(
     identity: { deviceId: string; userId: string; workspaceId: string },
     ttlSeconds?: number
   ): Promise<{ token: string; expiresAt: number; grantGeneration: number }> {
@@ -196,15 +196,13 @@ export class DevBridgeTokenService implements DeviceCredentialService {
   }
 }
 
-/**
- * Default dev grant file, derived from THIS module's location rather than the caller's cwd.
- */
-export function defaultDevGrantFile(): string {
-  return fileURLToPath(new URL(`../../.aleph-dev/${GRANT_FILE_NAME}`, import.meta.url))
+/** Default local grant file, derived from THIS module's location rather than the caller's cwd. */
+export function defaultLocalGrantFile(): string {
+  return fileURLToPath(new URL(`../../.local/state/${GRANT_FILE_NAME}`, import.meta.url))
 }
 
 /** Resolves the grant file: explicit override wins, else the module-derived default. */
-export function devGrantFile(env: NodeJS.ProcessEnv = process.env): string {
-  const override = env.ALEPH_DEV_GRANT_FILE?.trim()
-  return resolve(override || defaultDevGrantFile())
+export function localGrantFile(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env.ALEPH_LOCAL_GRANT_FILE?.trim()
+  return override ? resolve(override) : defaultLocalGrantFile()
 }

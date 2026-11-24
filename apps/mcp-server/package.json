@@ -10,11 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "smoke": "bun run src/smoke.ts",
     "e2e": "bun run scripts/e2e-autocad.ts",
-    "e2e:live": "bun run scripts/e2e-live.ts",
-    "mint:dev-credential": "bun run scripts/mint-dev-credential.ts",
-    "oauth:access-token": "bun run scripts/oauth-access-token.ts",
-    "gen:jwt-secret": "bun run scripts/gen-jwt-secret.ts",
-    "db:migrate": "bun run scripts/migrate.ts"
+    "e2e:live": "bun run scripts/e2e-live.ts"
   },
   "dependencies": {
     "@aleph-connector/observability": "workspace:*",
