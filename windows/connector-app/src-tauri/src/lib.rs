@@ -16,8 +16,13 @@ fn detect_agents() -> Vec<DetectedAgent> {
 }
 
 #[tauri::command]
-fn write_mcp_config(kind: String, config_path: String, mcp_url: String) -> Result<String, String> {
-    mcp_config::write_mcp_config(&kind, &config_path, &mcp_url)
+fn write_mcp_config(
+    kind: String,
+    config_path: String,
+    mcp_url: String,
+    stdio_exe: Option<String>,
+) -> Result<String, String> {
+    mcp_config::write_mcp_config(&kind, &config_path, &mcp_url, stdio_exe.as_deref())
 }
 
 /// Deploy AGENTS.md + skills into agent client directories (after MCP config is written).
