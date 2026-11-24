@@ -26,7 +26,6 @@
     "@aleph-connector/cad-state": "workspace:*",
     "@aleph-connector/operation-protocol": "workspace:*",
     "@modelcontextprotocol/server": "^2.0.0",
-    "postgres": "^3.4.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {

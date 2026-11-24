@@ -78,3 +78,12 @@ Public tool names may change only after the extracted behavior and contract test
 - Signed installer installs Connector, plugin bundle, and updater once.
 - External MCP client can authenticate, call context, perform a typed batch, verify revision/handles, reconcile a simulated lost response, and undo on real AutoCAD.
 - Verification includes multiple tabs/processes, stale revision, reconnect, capture failure, and unknown-outcome recovery.
+
+## Local-first cutover (2026-11-25)
+
+The cloud tiers this map preserved are removed for the local-first product
+(docs/specs/2026-11-25-local-first-connector-design.md): `apps/gateway` (OAuth AS, accounts,
+device grants, Postgres schema), `packages/identity/src/mcp-oauth/*`, `scopes.ts`, and the
+Postgres grant store. Device credentials (ABT) and grant semantics stay, with custody moved to
+the local runtime (`apps/mcp-server/src/local/runtimeIdentity.ts`). The MCP client principal is
+the fixed local caller; transport protection is the loopback Host/Origin guard.

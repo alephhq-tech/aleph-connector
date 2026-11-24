@@ -22,23 +22,5 @@ export {
 export {
   GrantDeniedError,
   MemoryDeviceGrantStore,
-  PostgresDeviceGrantStore,
-  type MutableDeviceGrantStore,
-  type SqlExecutor
+  type MutableDeviceGrantStore
 } from './grants.js'
-
-export {
-  DEFAULT_MCP_SCOPES,
-  MCP_SCOPES,
-  parseScopeString,
-  scopeString,
-  type McpScope
-} from './scopes.js'
-
-export {
-  McpOAuthAuthorizationServer,
-  type McpOAuthServerConfig,
-  type OAuthMetadataDocument
-} from './mcp-oauth/server.js'
-export { MemoryMcpOAuthStore, type McpOAuthStore, type RegisteredClient } from './mcp-oauth/store.js'
-export { McpJwtService, type McpAccessTokenClaims } from './mcp-oauth/jwt.js'

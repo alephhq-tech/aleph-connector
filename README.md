@@ -1,31 +1,40 @@
 # Aleph Connector
 
-Private, cloud-managed CAD tooling for user-owned AI agents.
+Local-first CAD tooling for user-owned AI agents. Free to run, no account, no cloud server.
 
-Aleph Connector exposes authenticated MCP tools to Claude, Codex, Antigravity, and other MCP clients. It does not host or operate an AI model. Cloud services own authorization, CAD semantics, validation, geometry, and engineering rules. The Windows Connector and AutoCAD plugin execute typed operations against the user's live DWG.
+Aleph Connector exposes MCP tools to Claude, Codex, Antigravity, Cursor, and other MCP clients
+over loopback on the user's own Windows machine. It does not host or operate an AI model. The
+local runtime owns CAD semantics, validation, geometry, and engineering rules; the Windows
+Connector and AutoCAD plugin execute typed operations against the user's live DWG.
 
 ## Product boundary
 
-- **Agent:** understands intent, reasons, and selects tools.
-- **Aleph Connector Cloud:** authenticates clients and devices; inspects, plans, validates, dispatches, and verifies CAD work.
-- **Windows Connector:** maintains the outbound device connection and routes typed requests over local IPC.
-- **AutoCAD plugin:** uses the Autodesk .NET API with document identity, main-thread execution, locks, transactions, rollback, and receipts.
+- **Agent:** understands intent, reasons, and selects tools (its own account/model — Aleph
+  Connector ships no model).
+- **Local runtime (Bun, 127.0.0.1):** serves `/mcp` (Streamable HTTP), `/device` (Connector WSS),
+  and `/health`; inspects, plans, validates, dispatches, and verifies CAD work.
+- **Windows Connector:** maintains the loopback device connection and routes typed requests over
+  local IPC.
+- **AutoCAD plugin:** uses the Autodesk .NET API with document identity, main-thread execution,
+  locks, transactions, rollback, and receipts.
 
-MCP clients authenticate with **OAuth 2.1 + PKCE** (no static API tokens). Device Connectors use a separate paired credential on `/device`. Aleph Connector never accepts arbitrary AutoCAD commands, AutoLISP, C# scripts, shell commands, or simulated mouse/keyboard input.
+MCP clients connect with no credentials — the runtime binds loopback and rejects non-loopback
+`Host`/cross-origin `Origin` requests. Windows Connectors use a locally minted device credential
+on `/device`; socket reachability is never authorization. Aleph Connector never accepts arbitrary
+AutoCAD commands, AutoLISP, C# scripts, shell commands, or simulated mouse/keyboard input.
 
 ## Repository layout
 
 ```text
 apps/
-  gateway/          Account auth, OAuth AS, device grants
-  mcp-server/       Remote MCP HTTP service and WSS device gateway
+  mcp-server/       Local MCP runtime (HTTP + WSS device gateway, one process)
 packages/
   cad-core/         Transport-independent command and execution contracts
-  cad-protocol/     Canonical TypeScript ↔ C# wire contracts
+  cad-protocol/     Canonical TypeScript <-> C# wire contracts
   cad-tools/        MCP schemas and semantic tool implementations
-  cad-state/        Revision-bound CAD context and cache
-  engineering/      Private geometry and engineering algorithms
-  identity/         MCP OAuth, pairing, device credentials, and grants
+  cad-state/        Revision-bound CAD context and cache (SQLite)
+  engineering/      Geometry and engineering algorithms
+  identity/         ABT device credentials and grants (local custody)
 windows/
   connector/        Compiled Windows device runtime (Bridge)
   connector-app/    Aleph Connector desktop UI (Tauri v2 + Bun)
@@ -39,13 +48,18 @@ docs/
 
 ## Invariants
 
-1. Every CAD read/write is bound to an authorized user, device, AutoCAD instance, document reference, and revision.
-2. Writes use typed allowlisted operations, idempotency keys, explicit revision preconditions, and document-scoped serialization.
+1. Every CAD read/write is bound to the local device, AutoCAD instance, document reference, and
+   revision.
+2. Writes use typed allowlisted operations, idempotency keys, explicit revision preconditions, and
+   document-scoped serialization.
 3. A timeout after dispatch is an unknown outcome; reconcile the execution receipt before retrying.
 4. Preview is pure. Apply reports commit truth independently from visual verification.
-5. MCP client credentials and Windows device credentials are distinct and independently revocable.
+5. The runtime binds 127.0.0.1; non-loopback `Host` or cross-origin `Origin` requests are rejected.
+   The Connector's device credential and grant-generation recheck stay independent of MCP access.
 6. Drawing content and captures are not logged by default.
 
 ## Status
 
-Repository foundation only. Extraction follows `docs/extraction-map.md`; no production service or installer is claimed complete.
+Local-first runtime and desktop integration in progress (see
+`docs/plans/2026-11-25-local-first-runtime.md`). Installer packaging and the open-source release
+(relicensing, secret audit, public CI) follow as separate plans.
