@@ -10,7 +10,8 @@
   "scripts": {
     "check": "bun run typecheck",
     "typecheck": "tsc -b --pretty false",
-    "test": "bun test"
+    "test": "bun test",
+    "build:runtime": "bun run apps/mcp-server/scripts/build-runtime.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

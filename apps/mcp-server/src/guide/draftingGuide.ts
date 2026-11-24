@@ -1,4 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
 import { portableInputSchema } from '../tools/portableSchema.js'
@@ -12,7 +14,13 @@ import {
 
 // The skill ships as plain files so it can also be installed into other agents unchanged; this
 // module serves those same files over MCP rather than keeping a second copy of the text.
-const SKILL_DIR = new URL('../../skills/autocad-drafting/', import.meta.url)
+// ALEPH_DRAFTING_SKILL_DIR points at the copy shipped next to a compiled sidecar exe; the
+// import.meta.url default covers `bun run src/index.ts` in a checkout.
+const SKILL_DIR = process.env.ALEPH_DRAFTING_SKILL_DIR?.trim()
+  ? // Trailing separator required: `new URL('references/', base)` drops the last segment without one.
+    pathToFileURL(process.env.ALEPH_DRAFTING_SKILL_DIR.trim().replace(/[\\/]+$/, '') + '/')
+  : new URL('../../skills/autocad-drafting/', import.meta.url)
+
 const URI_ROOT = 'autocad://guide/drafting/'
 const PROMPT_NAME = 'autocad-drafting-guide'
 const TOOL_NAME = 'guide'
