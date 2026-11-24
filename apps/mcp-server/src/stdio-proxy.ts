@@ -1,26 +1,17 @@
 /**
- * STDIO proxy for clients that cannot speak Streamable HTTP OAuth yet.
+ * STDIO proxy for hosts that can only spawn a stdio MCP server (e.g. Claude Desktop).
  *
- * Aleph MCP no longer accepts static API / minted ABT tokens as client credentials.
- * Prefer configuring the client with the HTTP URL only and completing the OAuth browser flow:
+ * The local runtime needs no credential: it binds 127.0.0.1 and rejects non-loopback
+ * Host/Origin. Prefer configuring the client with the HTTP URL directly:
  *
  *   { "url": "http://127.0.0.1:8080/mcp" }
  *
- * This proxy remains only for transitional stdio hosts that can inject an *OAuth access_token*
- * obtained via authorization_code + PKCE (see scripts/oauth-access-token.ts). Device ABT tokens
- * are rejected by the MCP resource server.
+ * This proxy exists for stdio-only hosts; AUTOCAD_MCP_URL points at the local runtime.
  */
 import readline from 'node:readline'
 
 const MCP_URL = process.env.AUTOCAD_MCP_URL || 'http://127.0.0.1:8080/mcp'
 const MCP_TOKEN = process.env.AUTOCAD_MCP_TOKEN?.trim()
-if (!MCP_TOKEN) {
-  console.error(
-    'AUTOCAD_MCP_TOKEN must be an OAuth access_token from Aleph Connector (/oauth/authorize + /oauth/token). ' +
-      'Static API tokens are not accepted. Prefer HTTP MCP with OAuth discovery instead of this proxy.'
-  )
-  process.exit(1)
-}
 
 let sessionId: string | null = null
 
@@ -50,9 +41,9 @@ rl.on('line', async (line: string) => {
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-      Authorization: `Bearer ${MCP_TOKEN}`
+      Accept: 'application/json, text/event-stream'
     }
+    if (MCP_TOKEN) headers['Authorization'] = `Bearer ${MCP_TOKEN}`
     if (sessionId) {
       headers['mcp-session-id'] = sessionId
     }

@@ -3,14 +3,14 @@
 `bun run e2e:live` drives the **full stack with no mocks**:
 
 ```text
-MCP client → Remote MCP Server (apps/mcp-server)
+MCP client → local runtime (apps/mcp-server, 127.0.0.1)
            → embedded Device Gateway (WSS /device)
            → installed CadAI connector (Windows service)
            → named pipe → AutoCAD plugin
            → a real AutoCAD document
 ```
 
-The headless suite (`bun test`, 842 tests) proves the server's logic against `MockBridgeClient`.
+The headless suite (`bun test`) proves the server's logic against `MockBridgeClient`.
 This lane proves the same tool calls against the real plugin — the part a mock can never show:
 actual AutoCAD geometry behaviour, the WSS transport, the connector's named-pipe framing, the
 document lock/transaction/undo machinery, and real error codes on real drawings.
@@ -27,55 +27,46 @@ missing):
 | CadAI connector installed (`%ProgramData%\CadAI\Bridge`, `CadAI Bridge` scheduled task) | the WSS dialer / pipe host |
 | Plugin bundle installed (`%APPDATA%\Autodesk\ApplicationPlugins\CadAI.bundle`) | what AutoCAD loads |
 | `CADAI_GATEWAY_URL` → `ws://127.0.0.1:8080/device` | connector must dial **this** server |
-| `JWT_SECRET` (16+ chars) in `apps/mcp-server/.env` | signs and verifies the dev credential |
 | repo train == installed train | so the lane tests the code in this checkout |
+
+There is no `.env` requirement: the local runtime mints its own device credential at startup
+(`%LOCALAPPDATA%\CadAI\connector\runtime-secret.json`, grants in `device-grants.json`) and writes
+the connector's `%LOCALAPPDATA%\CadAI\bridge\identity.json` itself.
 
 ## Run it
 
 ```powershell
 cd apps\mcp-server
-bun run e2e:live                 # doctor → server → credential → bridge → scratch → harness → teardown
+bun run e2e:live                 # doctor → runtime → bridge → scratch → harness → teardown
 bun run e2e:live --refresh       # also rebuild + deploy connector and plugin from this tree first
 bun run e2e:live --launch-autocad  # start AutoCAD if none is running (needs an interactive desktop)
 bun run e2e:live --only drawing  # one tool group
 bun run e2e:live --doctor-only   # just check the machine
 ```
 
-Run **from `apps/mcp-server`**: Bun loads `.env` relative to the process CWD, so that is where
-`JWT_SECRET` comes from. The report lands in `apps/mcp-server/e2e-live-report.json` (add
-`--report-out` to move it).
+The report lands in `apps/mcp-server/e2e-live-report.json` (add `--report-out` to move it).
 
 What the lane automates, in order:
 
 1. **Doctor** — read-only preflight; aborts on any missing prerequisite.
-2. **Server** — starts `src/index.ts` with `ALEPH_DEV_IDENTITY=1` and waits for `/health`.
-3. **Device credential** — `scripts/mint-dev-credential.ts` first-claims a grant for the connector's
-   `deviceId` and writes it to `%LOCALAPPDATA%\CadAI\bridge\identity.json` (WSS `/device` only).
-4. **MCP OAuth** — `scripts/oauth-access-token.ts` completes authorization_code + PKCE against the
-   local AS and returns an access_token for `/mcp` (device ABTs are rejected on MCP).
-5. **Bridge restart** — `schtasks /End` then `/Run` on `CadAI Bridge`, then waits for
+2. **Runtime** — starts `src/index.ts` (loopback only) and waits for `/health`. The runtime mints
+   or reuses the Bridge device credential and writes the connector `identity.json`.
+3. **Bridge restart** — `schtasks /End` then `/Run` on `CadAI Bridge`, then waits for
    `health.json` to report `pluginLoaded && ipcConnected && bridgeOnline`.
-6. **Scratch** — `scripts/prep-scratch.ts` opens/creates the harness's scratch drawing and activates
+4. **Scratch** — `scripts/prep-scratch.ts` opens/creates the harness's scratch drawing and activates
    it (the harness refuses to run unless the active document is exactly its scratch name).
-7. **Harness** — `scripts/e2e-autocad.ts` runs every scenario through `@modelcontextprotocol/client`;
+5. **Harness** — `scripts/e2e-autocad.ts` runs every scenario through `@modelcontextprotocol/client`;
    scratch closed and server stopped afterwards.
 
-## Auth model (OAuth MCP + device ABT)
+## Auth model (local trust)
 
-- **MCP `/mcp`**: OAuth 2.1 authorization_code + PKCE (S256). The **Aleph Gateway**
-  (`ALEPH_GATEWAY_URL`, production `https://gateway.alephhq.tech`) is the authorization server.
-  Interactive consent deep-links into the Windows **Aleph Connector** app
-  (`aleph-connector://oauth/consent`). MCP resource metadata advertises the gateway issuer.
-  No static API token and no env fake users.
-- **Device `/device`**: separate ABT credential in `identity.json` (HMAC
-  `${JWT_SECRET}:autocad-bridge-token`). Production pairing writes Postgres `device_grants`
-  via gateway `POST /devices/pair`. The live e2e lane opts into `ALEPH_DEV_IDENTITY=1` and
-  file-backed grants in `apps/mcp-server/.aleph-dev/device-grants.json`. MCP access tokens cannot
-  dial `/device`; device ABTs cannot call `/mcp`.
-
-`bun run mint:dev-credential` mints the **device** credential only (dev lane).
-`bun run oauth:access-token` obtains an MCP OAuth access_token via gateway
-`/oauth/dev/code` when `ALEPH_DEV_IDENTITY=1` on the gateway.
+- **MCP `/mcp`**: no credential. The runtime binds `127.0.0.1` and rejects any request whose
+  `Host` is not loopback or whose `Origin` is not a loopback origin (DNS-rebinding guard).
+  Socket reachability is not authorization — the Bridge still authenticates on `/device`, and
+  every dispatch rechecks the live grant generation.
+- **Device `/device`**: ABT credential (HMAC, locally minted) in `identity.json`, grants in
+  `%LOCALAPPDATA%\CadAI\connector\device-grants.json`. The lane never mints, replaces, or
+  restores the connector credential: the runtime owns it.
 
 ## Safety properties kept from the harness
 

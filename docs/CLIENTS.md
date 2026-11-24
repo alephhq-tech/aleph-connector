@@ -1,15 +1,13 @@
 # Connecting AI clients to Aleph Connector
 
-Aleph MCP speaks **Streamable HTTP** at your public MCP URL (e.g. `https://mcp.alephhq.tech/mcp`) and authenticates with **OAuth 2.1 + PKCE**. There is no static API token.
+Aleph Connector runs a **local MCP server** on your own Windows machine. It speaks **Streamable HTTP** at `http://127.0.0.1:8080/mcp` (port configurable via `MCP_AUTOCAD_PORT`) and needs **no account, no OAuth, no API key**: the runtime binds to loopback only and rejects any request with a non-loopback `Host` or a cross-origin `Origin`. Your AI agent is yours — Claude, Codex, Antigravity, Cursor, or anything that speaks MCP.
 
-Interactive login goes through **Aleph Gateway** (`https://gateway.alephhq.tech`) and deep-links into the Windows **Aleph Connector** app for consent (`aleph-connector://oauth/consent`). MCP resource metadata advertises the gateway as the authorization server.
-
-Install and configure agents with **Aleph Connector**: sign in → Install AutoCAD → **Install Plugin** for selected agents.
+The Aleph Connector desktop app starts the runtime, keeps the AutoCAD Bridge connected, and writes each agent's MCP config for you (**Install Plugin**). Doing it by hand is also fine; the per-client files below are the whole setup.
 
 **Install Plugin** does two things:
 
-1. Writes the MCP server URL into each client’s config (same as the old “Install MCP”).
-2. Deploys the **agent pack** (`packages/agent-pack`): `AGENTS.md` + skills (`autocad-drafting`, `pccc-fire-alarm-design`, …) into that client’s skill directories.
+1. Points each client's MCP config at the local runtime (the loopback URL, or the bundled stdio bridge for stdio-only hosts).
+2. Deploys the **agent pack** (`packages/agent-pack`): `AGENTS.md` + skills (`autocad-drafting`, `pccc-fire-alarm-design`, …) into that client's skill directories.
 
 | Client | MCP config | Skills / instructions |
 |--------|------------|------------------------|
@@ -17,7 +15,7 @@ Install and configure agents with **Aleph Connector**: sign in → Install AutoC
 | Antigravity | `%USERPROFILE%\.gemini\config\mcp_config.json` | `%USERPROFILE%\.gemini\config\plugins\aleph-connector\` (+ mirrored skills under `config\skills`) |
 | Claude Desktop / Code | Claude Desktop JSON / `claude mcp add` | `%USERPROFILE%\.claude\skills\` |
 | VS Code | `%USERPROFILE%\.vscode\mcp.json` | `%USERPROFILE%\.vscode\skills\aleph-connector\` |
-| Codex CLI | Codex MCP settings | `%USERPROFILE%\.codex\skills\` |
+| Codex CLI | `%USERPROFILE%\.codex\config.toml` | `%USERPROFILE%\.codex\skills\` |
 
 PCCC / drafting skills are also exposed over MCP as resources (`autocad://guide/drafting/…`, `autocad://guide/pccc/…`) and via the `guide` tool topics (`pccc`, `pccc-fire-alarm-design`, …).
 
@@ -29,13 +27,11 @@ PCCC / drafting skills are also exposed over MCP as resources (`autocad://guide/
 {
   "mcpServers": {
     "aleph-connector": {
-      "url": "https://mcp.alephhq.tech/mcp"
+      "url": "http://127.0.0.1:8080/mcp"
     }
   }
 }
 ```
-
-Complete the OAuth browser flow when Cursor connects (Approve in Aleph Connector).
 
 ## Antigravity
 
@@ -45,24 +41,35 @@ Complete the OAuth browser flow when Cursor connects (Approve in Aleph Connector
 {
   "mcpServers": {
     "aleph-connector": {
-      "serverUrl": "https://mcp.alephhq.tech/mcp"
+      "serverUrl": "http://127.0.0.1:8080/mcp"
     }
   }
 }
 ```
 
-In Antigravity: **⋯ → MCP Servers** after Connector writes the file. OAuth opens Aleph Connector for consent.
+In Antigravity: **⋯ → MCP Servers** after Connector writes the file.
 
 ## Claude Desktop
 
-Claude Desktop’s connector UI does not always drive full OAuth headers; bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) in `%APPDATA%\Claude\claude_desktop_config.json`:
+Claude Desktop (current builds) accepts HTTP servers directly in `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "aleph-connector": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.alephhq.tech/mcp"]
+      "url": "http://127.0.0.1:8080/mcp"
+    }
+  }
+}
+```
+
+For stdio-only hosts, the Connector ships a bundled stdio bridge (`aleph-mcp-stdio.exe`, source `apps/mcp-server/src/stdio-proxy.ts`) that relays to the local runtime — no `npx`, no network:
+
+```json
+{
+  "mcpServers": {
+    "aleph-connector": {
+      "command": "C:\\Users\\YOU\\AppData\\Local\\CadAI\\connector\\aleph-mcp-stdio.exe"
     }
   }
 }
@@ -71,7 +78,7 @@ Claude Desktop’s connector UI does not always drive full OAuth headers; bridge
 ## Claude Code
 
 ```bash
-claude mcp add --transport http aleph-connector https://mcp.alephhq.tech/mcp
+claude mcp add --transport http aleph-connector http://127.0.0.1:8080/mcp
 ```
 
 ## VS Code (Copilot agent mode)
@@ -83,7 +90,7 @@ claude mcp add --transport http aleph-connector https://mcp.alephhq.tech/mcp
   "servers": {
     "aleph-connector": {
       "type": "http",
-      "url": "https://mcp.alephhq.tech/mcp"
+      "url": "http://127.0.0.1:8080/mcp"
     }
   }
 }
@@ -91,8 +98,13 @@ claude mcp add --transport http aleph-connector https://mcp.alephhq.tech/mcp
 
 ## Codex CLI
 
-Point Codex’s MCP settings at the same HTTP URL (`https://mcp.alephhq.tech/mcp`) and complete OAuth when prompted.
+`%USERPROFILE%\.codex\config.toml`:
+
+```toml
+[mcp_servers.aleph-connector]
+url = "http://127.0.0.1:8080/mcp"
+```
 
 ## Local / e2e only
 
-With `ALEPH_DEV_IDENTITY=1` on **gateway**, `bun run oauth:access-token` (from `apps/mcp-server`, hitting `ALEPH_GATEWAY_URL`) and `bun run mint:dev-credential` remain for automated lanes.
+`bun run e2e:live` (from `apps/mcp-server`) starts the local runtime itself, restarts the CadAI Bridge task, and drives the real stack — no tokens anywhere in the lane. `--doctor-only` runs just the read-only preflight.

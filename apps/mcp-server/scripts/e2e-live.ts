@@ -5,16 +5,20 @@
  *   MCP client -> Remote MCP Server (this repo) -> embedded Device Gateway (WSS) -> installed CadAI
  *   connector -> named pipe -> AutoCAD plugin -> real AutoCAD document.
  *
- * Steps, in order: doctor preflight -> start mcp-server with the opt-in device identity tier -> mint
- * the device credential (connector identity.json only) -> OAuth authorization_code+PKCE for the MCP
- * client -> restart the CadAI Bridge task so it dials that credential -> wait for health.json to show
- * pluginLoaded/ipcConnected/bridgeOnline -> prepare the harness's scratch drawing -> run
- * scripts/e2e-autocad.ts against the real stack -> scratch teardown, credential restore, server stop.
+ * Steps, in order: doctor preflight -> start the local runtime (it mints its own Bridge device
+ * credential and writes the connector identity.json at startup) -> restart the CadAI Bridge task so
+ * it dials that credential -> wait for health.json to show pluginLoaded/ipcConnected/bridgeOnline ->
+ * prepare the harness's scratch drawing -> run scripts/e2e-autocad.ts against the real stack ->
+ * scratch teardown, server stop.
+ *
+ * There is no account and no OAuth token anywhere in this lane: the MCP client connects to
+ * http://127.0.0.1:<port>/mcp with no credential, and the Bridge authenticates on /device with the
+ * locally minted device credential the runtime owns.
  *
  * Fail-closed throughout: a missing prerequisite aborts before the machine is touched, and the
  * harness itself refuses to run unless the ACTIVE AutoCAD document is its own scratch drawing.
  *
- * Run from apps/mcp-server so Bun loads this app's .env (JWT_SECRET):
+ * Run from apps/mcp-server:
  *   bun run e2e:live
  *
  * Flags:
@@ -30,8 +34,7 @@
  *   --keep-server             leave the mcp-server running after the lane finishes
  *   --doctor-only             stop after the preflight
  */
-import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
@@ -46,14 +49,6 @@ interface Flags {
   doctorOnly: boolean
 }
 
-interface Minted {
-  deviceId: string
-  grantGeneration: number
-  expiresAt: string
-  identityPath: string
-  token: string
-}
-
 interface Health {
   running: boolean
   pluginLoaded: boolean
@@ -66,8 +61,6 @@ interface Health {
   updatedAt?: string
 }
 
-const WORKSPACE_ID = 'ws-e2e'
-const USER_ID = 'user-e2e'
 const HEALTH_TIMEOUT_MS = 180_000
 
 class LaneError extends Error {}
@@ -274,19 +267,10 @@ async function main(): Promise<void> {
   const appDir = process.cwd()
   const repoRoot = join(appDir, '..', '..')
 
-  if (!process.env.JWT_SECRET?.trim()) {
-    throw new LaneError(
-      'JWT_SECRET is not in this process env. Run from apps/mcp-server, where Bun loads its .env: cd apps/mcp-server && bun run e2e:live'
-    )
-  }
-
-  step('1/7 doctor preflight')
-  // The lane starts the server with the dev identity tier, so the doctor must see that env too or it
-  // reports a false "unset" for a flag this runner always supplies.
+  step('1/5 doctor preflight')
   const doctorExit = run(
     'powershell',
-    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repoRoot, 'windows', 'scripts', 'e2e-live-doctor.ps1')],
-    { env: { ...process.env, ALEPH_DEV_IDENTITY: '1' } }
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(repoRoot, 'windows', 'scripts', 'e2e-live-doctor.ps1')]
   )
   if (doctorExit !== 0) throw new LaneError('doctor reported missing prerequisites - fix those, then rerun.')
   if (flags.doctorOnly) return
@@ -314,10 +298,10 @@ async function main(): Promise<void> {
     launchAutocad()
   }
 
-  step('2/7 start the mcp-server (OAuth AS + device identity tier)')
+  step('2/5 start the local runtime (mints its Bridge credential, writes connector identity.json)')
   const server = Bun.spawn(['bun', 'run', 'src/index.ts'], {
     cwd: appDir,
-    env: { ...process.env, ALEPH_DEV_IDENTITY: '1' },
+    env: { ...process.env },
     stdout: 'pipe',
     stderr: 'pipe'
   })
@@ -365,59 +349,23 @@ async function main(): Promise<void> {
     }
   }
 
-  // The mint step overwrites the connector's credential file. Whatever provisioned it (Aleph Desktop,
-  // or an earlier operator run) is backed up and restored in finally, so the lane never strands a
-  // working install.
+  // The runtime owns the connector credential: it minted (or reused) the device identity at
+  // startup and wrote identity.json itself, so the lane reads it for reporting only — it never
+  // mints, replaces, or restores it.
   const identityPath = connectorIdentityPath()
-  const identityBackup = join(tmpdir(), `aleph-identity-backup-${Date.now()}.json`)
-  let identityWasBackedUp = false
 
   try {
-    step('3/7 mint the device credential (Connector identity.json — not an MCP token)')
-    if (existsSync(identityPath)) {
-      copyFileSync(identityPath, identityBackup)
-      identityWasBackedUp = true
-      console.log(`backed up ${identityPath} -> ${identityBackup}`)
-    }
-    const mintRaw = capture(
-      'bun',
-      ['run', 'scripts/mint-dev-credential.ts', '--workspace-id', WORKSPACE_ID, '--user-id', USER_ID],
-      { cwd: appDir, env: { ...process.env, ALEPH_DEV_IDENTITY: '1' } }
-    )
-    let minted: Minted
+    let localIdentity: { deviceId?: string } | null = null
     try {
-      minted = JSON.parse(mintRaw) as Minted
+      localIdentity = JSON.parse(readFileSync(identityPath, 'utf8')) as { deviceId?: string }
     } catch {
-      throw new LaneError(`mint-dev-credential.ts printed no JSON: ${mintRaw.slice(0, 200)}`)
+      throw new LaneError(
+        `the runtime started but wrote no connector identity at ${identityPath} — the Bridge has nothing to dial.`
+      )
     }
-    console.log(
-      `deviceId=${minted.deviceId} grantGeneration=${minted.grantGeneration} expires=${minted.expiresAt}`
-    )
+    console.log(`local device identity: deviceId=${localIdentity.deviceId ?? '?'}`)
 
-    step('4/7 obtain MCP OAuth access token (authorization_code + PKCE)')
-    const oauthRaw = capture(
-      'bun',
-      [
-        'run',
-        'scripts/oauth-access-token.ts',
-        '--base-url',
-        `http://127.0.0.1:${port}`,
-        '--workspace-id',
-        WORKSPACE_ID,
-        '--user-id',
-        USER_ID
-      ],
-      { cwd: appDir, env: { ...process.env, ALEPH_DEV_IDENTITY: '1' } }
-    )
-    let oauthToken: string
-    try {
-      oauthToken = (JSON.parse(oauthRaw) as { access_token: string }).access_token
-    } catch {
-      throw new LaneError(`oauth-access-token.ts printed no JSON: ${oauthRaw.slice(0, 200)}`)
-    }
-    if (!oauthToken) throw new LaneError('oauth-access-token.ts returned an empty access_token')
-
-    step('5/7 restart the CadAI Bridge task so it dials the fresh credential')
+    step('3/5 restart the CadAI Bridge task so it dials the runtime credential')
     await restartBridgeTask()
 
     const settled = await waitForHealth(
@@ -436,25 +384,22 @@ async function main(): Promise<void> {
       `stack online: bridge=${settled.bridgeVersion ?? '?'} plugin=${settled.instances?.[0]?.pluginVersion ?? '?'} recoveryPending=${settled.recoveryPending ?? false}`
     )
 
-    step('6/7 prepare the scratch drawing')
+    step('4/5 prepare the scratch drawing')
     const mcpUrl = process.env.CADAI_E2E_MCP_URL ?? `http://127.0.0.1:${port}/mcp`
     const laneEnv = {
       ...process.env,
       CADAI_E2E_MCP_URL: mcpUrl,
-      CADAI_E2E_TOKEN: oauthToken,
       CADAI_E2E_SCRATCH_NAME: flags.scratchName
     }
     const prepExit = run('bun', ['run', 'scripts/prep-scratch.ts'], { cwd: appDir, env: laneEnv })
     if (prepExit !== 0) throw new LaneError('prep-scratch.ts failed - the harness would refuse to run anyway.')
 
-    step('7/7 run the harness against the real stack')
+    step('5/5 run the harness against the real stack')
     const harnessArgs = [
       'run',
       'scripts/e2e-autocad.ts',
       '--mcp-url',
       mcpUrl,
-      '--token',
-      oauthToken,
       '--scratch-name',
       flags.scratchName,
       '--block-name',
@@ -482,11 +427,6 @@ async function main(): Promise<void> {
     process.exitCode = harnessExit !== 0 ? 1 : 0
   } finally {
     stopServer()
-    if (identityWasBackedUp) {
-      copyFileSync(identityBackup, identityPath)
-      rmSync(identityBackup, { force: true })
-      console.log(`restored ${identityPath}`)
-    }
   }
 }
 
