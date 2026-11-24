@@ -125,7 +125,7 @@ pub fn install_autocad(
     } else {
         return Ok((
             false,
-            "No device token — sign in and pair this machine before installing Bridge.".into(),
+            "No device token — start the local runtime (it writes the Bridge credential), then install.".into(),
         ));
     }
 

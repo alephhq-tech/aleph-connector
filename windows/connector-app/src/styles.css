@@ -95,36 +95,6 @@ button {
   overflow: auto;
 }
 
-.signed-out {
-  min-height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 48px 24px;
-  background:
-    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(212, 165, 116, 0.14), transparent 55%),
-    linear-gradient(180deg, #121314 0%, #0e0f10 100%);
-}
-
-.signed-out-panel {
-  width: min(420px, 100%);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.signed-out-panel h1 {
-  margin: 0;
-  font-size: 2.4rem;
-  letter-spacing: -0.04em;
-  font-weight: 700;
-}
-
-.signed-out-panel .lead {
-  margin: 0;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
 .btn {
   border: 1px solid var(--border);
   background: var(--bg-elevated);
@@ -147,30 +117,6 @@ button {
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
-}
-
-.btn-google {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border);
 }
 
 .field {
@@ -455,7 +401,7 @@ button {
   text-align: left;
 }
 
-.account-chip {
+.runtime-chip {
   margin-top: auto;
   font-size: 0.85rem;
   color: var(--text-muted);
