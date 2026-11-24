@@ -25,6 +25,8 @@ const DEVICE_TOKEN_TTL_SECONDS = 400 * 86_400
 export interface LocalRuntimeContext {
   deviceId: string
   caller: { workspaceId: string; userId: string }
+  /** Directory holding the runtime secret, grants, identity, and the CAD-state DB. */
+  stateDir: string
 }
 
 interface PersistedIdentity {
@@ -124,5 +126,5 @@ export async function configureLocalRuntime(
     grantGeneration: minted.grantGeneration
   })
 
-  return { deviceId, caller: { ...LOCAL_CALLER } }
+  return { deviceId, caller: { ...LOCAL_CALLER }, stateDir }
 }

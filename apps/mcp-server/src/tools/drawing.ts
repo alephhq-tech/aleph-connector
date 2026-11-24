@@ -182,26 +182,37 @@ const MAX_LAYOUT_POLYLINE_ROWS = 10_000
  */
 export function createCadStateSource(
   workspaceId: string,
-  bridge: BridgeClient
+  bridge: BridgeClient,
+  // Local-first hook: when no snapshot is verified at the live revision, the local runtime
+  // builds one on demand (its single scan path) and re-queries once. Tiers without a local
+  // index leave this unset and keep failing closed.
+  buildOnMiss?: (identity: InspectIdentity) => Promise<string | null>
 ): RegionGeometrySource {
   return {
     async snapshotFor(identity) {
       if (!identity.revision) return null
-      let drawingId: string | undefined
-      if (identity.fingerprintGuid) {
-        const byFp = await db.cadDocuments.findByFingerprint(workspaceId, identity.fingerprintGuid)
-        if (byFp) drawingId = byFp.id
+      const lookup = async (): Promise<{ snapshotId: string; fresh: boolean } | null> => {
+        let drawingId: string | undefined
+        if (identity.fingerprintGuid) {
+          const byFp = await db.cadDocuments.findByFingerprint(workspaceId, identity.fingerprintGuid)
+          if (byFp) drawingId = byFp.id
+        }
+        if (!drawingId && identity.documentId) {
+          const bySession = await db.cadDocuments.findBySession(workspaceId, identity.documentId)
+          drawingId = bySession[0]?.id
+        }
+        if (!drawingId) return null
+        // resolveAccess is the ONE freshness authority; a snapshot not verified at the live revision
+        // is `mayUseForCurrentFacts:false`, so we never serve stale geometry as if it were current.
+        const access = await cadStateService.resolveAccess(workspaceId, drawingId, identity.revision)
+        if (!access?.snapshot || !access.mayUseForCurrentFacts) return null
+        return { snapshotId: access.snapshot.id, fresh: true }
       }
-      if (!drawingId && identity.documentId) {
-        const bySession = await db.cadDocuments.findBySession(workspaceId, identity.documentId)
-        drawingId = bySession[0]?.id
-      }
-      if (!drawingId) return null
-      // resolveAccess is the ONE freshness authority; a snapshot not verified at the live revision
-      // is `mayUseForCurrentFacts:false`, so we never serve stale geometry as if it were current.
-      const access = await cadStateService.resolveAccess(workspaceId, drawingId, identity.revision)
-      if (!access?.snapshot || !access.mayUseForCurrentFacts) return null
-      return { snapshotId: access.snapshot.id, fresh: true }
+      const found = await lookup()
+      if (found) return found
+      if (!buildOnMiss) return null
+      await buildOnMiss(identity)
+      return lookup()
     },
     async rowsInWindow(snapshotId, window, limit) {
       const rows = await db.cadSnapshotEntities.query(snapshotId, { window, limit })

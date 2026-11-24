@@ -3,6 +3,7 @@ import { createLogger, initTelemetry, type Logger } from '@aleph-connector/obser
 import { createApp } from './app.js'
 import { loadMcpServerConfig } from './config.js'
 import { configureLocalRuntime } from './local/runtimeIdentity.js'
+import { configureLocalStore } from './local/store.js'
 
 initTelemetry({ serviceName: 'aleph-mcp' })
 
@@ -11,6 +12,9 @@ const config = loadMcpServerConfig()
 // Local trust: the runtime owns the Bridge device credential (identity.json) and the
 // grant store. The Bridge still authenticates on /device — reachability is not authorization.
 const ctx = await configureLocalRuntime(process.env, log)
+// One SQLite store (cad-state.db) behind the shared db + cadStateService seams; snapshots
+// are revision-bound and rebuilt on demand by the scan path in tools/drawing.ts.
+const store = configureLocalStore(ctx.stateDir)
 const app = createApp(config, ctx)
 app.gateway.startHeartbeatSweep()
 
@@ -34,6 +38,7 @@ process.on('SIGINT', () => void shutdown())
 process.on('SIGTERM', () => void shutdown())
 
 async function shutdown(): Promise<void> {
+  store.close()
   app.gateway.stopHeartbeatSweep()
   await app.mcpHandler.close()
   await server.stop()
