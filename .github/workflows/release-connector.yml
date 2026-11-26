@@ -21,6 +21,39 @@ jobs:
       UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure runner tool paths
+        shell: powershell
+        run: |
+          $toolPaths = @(
+            "C:\Users\PC\.bun\bin",
+            "C:\Users\PC\.cargo\bin"
+          )
+          foreach ($p in $toolPaths) {
+            if (Test-Path $p) {
+              Add-Content $env:GITHUB_PATH $p
+              Write-Host "Added to GITHUB_PATH: $p"
+            }
+          }
+
+      - name: Setup Bun runtime
+        uses: oven-sh/setup-bun@v2
+        continue-on-error: true
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        continue-on-error: true
+
+      - name: Verify toolchain availability
+        shell: powershell
+        run: |
+          where.exe bun
+          bun --version
+          where.exe cargo
+          cargo --version
+          where.exe dotnet
+          dotnet --version
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
