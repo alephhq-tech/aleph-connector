@@ -38,6 +38,8 @@ jobs:
 
       - name: Setup Bun runtime
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
         continue-on-error: true
 
       - name: Setup Rust toolchain
