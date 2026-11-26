@@ -348,8 +348,12 @@ fn sidecar_label(sidecar: &Sidecar) -> String {
 mod tests {
     use super::*;
 
+    static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn desired_runtime_restarts_after_unexpected_exit() {
+        let _lock = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("ALEPH_MCP_SIDECAR");
         let root =
             std::env::temp_dir().join(format!("aleph-runtime-restart-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
@@ -415,6 +419,7 @@ mod tests {
 
     #[test]
     fn resolve_sidecar_prefers_env_override() {
+        let _lock = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("aleph-sidecar-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let exe = dir.join("aleph-mcp.exe");
@@ -428,6 +433,8 @@ mod tests {
 
     #[test]
     fn resolve_sidecar_finds_dev_checkout_from_cwd() {
+        let _lock = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("ALEPH_MCP_SIDECAR");
         // Tests run with CWD = src-tauri; the walk-up must find apps/mcp-server/src/index.ts.
         // (current_exe lives in target/debug, which walks up to the repo root too.)
         let resolved = resolve_sidecar(None);

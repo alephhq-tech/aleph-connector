@@ -28,6 +28,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure runner tool paths
+        working-directory: .
+        run: |
+          $toolPaths = @(
+            "C:\Users\PC\.bun\bin",
+            "C:\Users\PC\.cargo\bin"
+          )
+          foreach ($p in $toolPaths) {
+            if (Test-Path $p) {
+              Add-Content $env:GITHUB_PATH $p
+              Write-Host "Added to GITHUB_PATH: $p"
+            }
+          }
+
+      - name: Setup Bun runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+        continue-on-error: true
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        continue-on-error: true
+
+      - name: Verify toolchain availability
+        working-directory: .
+        run: |
+          where.exe bun
+          bun --version
+          where.exe cargo
+          cargo --version
+          where.exe dotnet
+          dotnet --version
+
       - uses: actions/setup-dotnet@v4
         env:
           DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}\dotnet
@@ -74,5 +108,5 @@ jobs:
       - name: Test Tauri Rust backend and update contracts
         working-directory: windows/connector-app/src-tauri
         run: |
-          cargo test
+          cargo test -- --test-threads=1
           if ($LASTEXITCODE -ne 0) { throw 'Rust tests failed.' }
