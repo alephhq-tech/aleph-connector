@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <Copyright>Copyright 2026 Aleph Technologies and contributors</Copyright>
+    <Authors>Aleph Technologies</Authors>
+  </PropertyGroup>
+</Project>

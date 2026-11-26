@@ -182,8 +182,11 @@ fn spawn_supervisor(resource_dir: Option<PathBuf>, port: u16, generation: u64) {
         let mut backoff = 1u64;
         loop {
             std::thread::sleep(std::time::Duration::from_secs(backoff));
-            let guard = supervisor_state().lock().unwrap_or_else(|e| e.into_inner());
-            if !guard.desired || guard.generation != generation {
+            let (desired, gen) = {
+                let guard = supervisor_state().lock().unwrap_or_else(|e| e.into_inner());
+                (guard.desired, guard.generation)
+            };
+            if !desired || gen != generation {
                 return;
             }
             let running = {
@@ -194,6 +197,18 @@ fn spawn_supervisor(resource_dir: Option<PathBuf>, port: u16, generation: u64) {
                 backoff = 1;
             } else {
                 let restarted = start_child(resource_dir.as_deref(), Some(port));
+                let (still_desired, still_gen) = {
+                    let guard = supervisor_state().lock().unwrap_or_else(|e| e.into_inner());
+                    (guard.desired, guard.generation)
+                };
+                if !still_desired || still_gen != generation {
+                    let mut child = runtime_slot().lock().unwrap_or_else(|e| e.into_inner());
+                    if let Some(mut process) = child.take() {
+                        let _ = process.kill();
+                        let _ = process.wait();
+                    }
+                    return;
+                }
                 let healthy = restarted
                     .as_ref()
                     .map(|status| status.healthy)

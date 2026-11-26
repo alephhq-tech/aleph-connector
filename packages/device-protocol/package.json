@@ -4,5 +4,6 @@
   "version": "0.1.0",
   "type": "module",
   "main": "./device-protocol.ts",
-  "types": "./device-protocol.ts"
+  "types": "./device-protocol.ts",
+  "license": "Apache-2.0"
 }
