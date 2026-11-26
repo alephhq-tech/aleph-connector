@@ -108,5 +108,5 @@ jobs:
       - name: Test Tauri Rust backend and update contracts
         working-directory: windows/connector-app/src-tauri
         run: |
-          cargo test
+          cargo test -- --test-threads=1
           if ($LASTEXITCODE -ne 0) { throw 'Rust tests failed.' }
