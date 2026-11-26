@@ -18,10 +18,12 @@ $npm = Get-Content (Join-Path $windowsRoot 'connector-app/package.json') -Raw | 
 $plugin = Get-Content (Join-Path $windowsRoot 'installer/autocad-bundle/CadAI.bundle/current.json') -Raw | ConvertFrom-Json
 $cargo = [IO.File]::ReadAllText((Join-Path $tauri 'Cargo.toml'))
 $bridge = [IO.File]::ReadAllText((Join-Path $windowsRoot 'connector/BridgeConfig.cs'))
+$pluginState = [IO.File]::ReadAllText((Join-Path $windowsRoot 'autocad-plugin/PluginState.cs'))
 if ($config.version -ne $Version -or $npm.version -ne $Version -or $plugin.current -ne $Version -or
     $cargo -notmatch ('(?m)^version\s*=\s*"' + [regex]::Escape($Version) + '"') -or
-    $bridge -notmatch ('BridgeVersion\s*=\s*"' + [regex]::Escape($Version) + '"')) {
-    throw 'Tauri, Cargo, frontend, Bridge and AutoCAD plugin release versions must match.'
+    $bridge -notmatch ('BridgeVersion\s*=\s*"' + [regex]::Escape($Version) + '"') -or
+    $pluginState -notmatch ('PluginVersion\s*=\s*"' + [regex]::Escape($Version) + '"')) {
+    throw 'Tauri, Cargo, frontend, Bridge, AutoCAD bundle, and AutoCAD plugin release versions must match.'
 }
 if (Test-Path $OutputDir) { throw 'OutputDir must not already exist; refusing to overwrite existing files.' }
 New-Item -ItemType Directory -Path $OutputDir | Out-Null

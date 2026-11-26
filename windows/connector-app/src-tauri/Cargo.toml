@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Aleph Connector — account, AutoCAD install, MCP agent setup"
 authors = ["Aleph"]
 edition = "2021"
+license = "Apache-2.0"
 
 [lib]
 name = "aleph_connector_lib"

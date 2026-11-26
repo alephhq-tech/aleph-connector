@@ -27,6 +27,21 @@ artifacts/
 *.exe
 *.pdb
 
+# Keys and certificates — ignore private material, allow pinned public verification keys and fixtures
+*.pem
+*.pfx
+*.key
+*.der
+!windows/updater/prodkeys/public.pem
+!windows/updater/devkeys/public.pem
+!windows/connector-app/src-tauri/src/update-public-key.der
+!windows/connector-app/src-tauri/tests/fixtures/*.der
+!windows/connector-app/src-tauri/tests/fixtures/*.sig
+
+# Rust build target
+target/
+windows/connector-app/src-tauri/target/
+
 # Local update-signing scratch keys — never commit private material.
 windows/tmp-keys/
 

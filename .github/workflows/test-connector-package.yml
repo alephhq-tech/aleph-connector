@@ -70,3 +70,9 @@ jobs:
 
       - name: Test Bridge packaging contracts
         run: dotnet test connector.Tests/CadAI.Bridge.Tests.csproj -c Release --nologo --filter FullyQualifiedName~UpdateChannelContractTests
+
+      - name: Test Tauri Rust backend and update contracts
+        working-directory: windows/connector-app/src-tauri
+        run: |
+          cargo test
+          if ($LASTEXITCODE -ne 0) { throw 'Rust tests failed.' }

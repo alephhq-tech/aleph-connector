@@ -9,5 +9,6 @@
   },
   "scripts": {
     "gen:preimage-vectors": "bun run scripts/gen-preimage-vectors.ts"
-  }
+  },
+  "license": "Apache-2.0"
 }
