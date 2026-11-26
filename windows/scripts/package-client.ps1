@@ -77,11 +77,11 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 # Join-Path components below use forward slashes (a backslash is a literal char on Linux).
 $onWindows = [Environment]::OSVersion.Platform -eq 'Win32NT'
 $crossWindowsArgs = @()
-$bridgePublishArgs = @()
 if (-not $onWindows) {
     $crossWindowsArgs = @('-p:EnableWindowsTargeting=true')
-    $bridgePublishArgs = @('-r', 'win-x64', '--self-contained', 'false') + $crossWindowsArgs
 }
+# Bundle .NET Desktop so the Bridge works without a separate runtime installation.
+$bridgePublishArgs = @('-r', 'win-x64', '--self-contained', 'true') + $crossWindowsArgs
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $repoRoot 'dist/client'
@@ -139,7 +139,7 @@ Write-Host "=========================================================="
 # compiled this time.
 if (Test-Path $OutputDir) {
     Write-Host "Cleaning existing output directory..."
-    foreach ($stale in 'bridge', 'CadAI.bundle', 'keys') {
+    foreach ($stale in 'bridge', 'CadAI.bundle', 'keys', 'AlephConnector.exe', 'agent-pack') {
         Remove-Item -Path (Join-Path $OutputDir $stale) -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
@@ -339,19 +339,10 @@ Write-Host "========================================="
 Write-Host " Installing CadAI Client Integration"
 Write-Host "========================================="
 
-# 0. Prerequisite: the Bridge ships framework-dependent (net8.0-windows + UseWindowsForms),
-# so it needs the .NET *Desktop* Runtime 8 x64, which a fresh client PC usually lacks. Without
-# it CadAI.Bridge.exe dies instantly and writes no log — the integration then looks silently
-# dead. Fail here with an actionable message instead of installing a Bridge that can't run.
-$desktopAppDir = Join-Path $env:ProgramFiles 'dotnet\shared\Microsoft.WindowsDesktop.App'
-if (-not (Test-Path $desktopAppDir) -or -not @(Get-ChildItem $desktopAppDir -Directory | Where-Object { $_.Name -like '8.*' })) {
-    throw "Thieu .NET Desktop Runtime 8 (x64) - CadAI.Bridge.exe khong chay duoc neu chua cai. Cai 'Run desktop apps' (.NET Desktop Runtime 8.0.x x64) tu https://dotnet.microsoft.com/download/dotnet/8.0 roi chay lai install.ps1."
-}
-
 # 1. Validate prerequisites and back up existing credential/env before any mutations.
 # These will be restored if update fails during staging, activation, or startup verification.
 if (-not $DeviceToken) {
-    Write-Warning "No DeviceToken yet - Bridge will install without a credential. Sign in with Aleph Connector to pair, then re-run Setup / install.ps1 if needed."
+    throw "No Bridge device credential. Start the local Connector runtime and run Install from Connector."
 }
 $identityDir = Join-Path $env:LOCALAPPDATA 'CadAI\bridge'
 $identityPath = Join-Path $identityDir 'identity.json'

@@ -23,7 +23,9 @@ uuid = { version = "1", features = ["v4"] }
 dirs = "5"
 thiserror = "2"
 ureq = { version = "2", default-features = true, features = ["tls"] }
-sha2 = "0.10"
+ring = "0.17"
+semver = "1"
+base64 = "0.22"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]

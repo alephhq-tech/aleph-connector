@@ -4,6 +4,7 @@ mod identity;
 mod install;
 mod mcp_config;
 mod runtime;
+mod update_package;
 mod updates;
 
 use agents::DetectedAgent;
@@ -78,10 +79,17 @@ async fn check_updates() -> Result<UpdateCheck, String> {
 }
 
 #[tauri::command]
-async fn apply_update(device_gateway_url: String) -> Result<(bool, String), String> {
-    tauri::async_runtime::spawn_blocking(move || updates::apply_update(&device_gateway_url))
+async fn apply_update() -> Result<(), String> {
+    let installer = tauri::async_runtime::spawn_blocking(updates::prepare_update)
         .await
-        .map_err(|e| format!("update task join failed: {e}"))?
+        .map_err(|e| format!("update task join failed: {e}"))??;
+    updates::launch_installer(&installer)
+}
+
+#[tauri::command]
+fn stdio_exe(app: tauri::AppHandle) -> Result<String, String> {
+    let resource_dir = app.path().resource_dir().ok();
+    runtime::resolve_stdio_exe(resource_dir.as_deref()).map(|p| p.to_string_lossy().into())
 }
 
 #[tauri::command]
@@ -89,13 +97,22 @@ fn package_root() -> String {
     install::resource_dir_hint()
 }
 
+async fn start_runtime_task(
+    resource_dir: Option<std::path::PathBuf>,
+    port: Option<u16>,
+) -> Result<runtime::RuntimeStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || runtime::start(resource_dir.as_deref(), port))
+        .await
+        .map_err(|e| format!("runtime start task join failed: {e}"))?
+}
+
 #[tauri::command]
-fn start_runtime(app: tauri::AppHandle, port: Option<u16>) -> Result<runtime::RuntimeStatus, String> {
+async fn start_runtime(
+    app: tauri::AppHandle,
+    port: Option<u16>,
+) -> Result<runtime::RuntimeStatus, String> {
     let resource_dir = app.path().resource_dir().ok();
-    tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
-        runtime::start(resource_dir.as_deref(), port)
-    }))
-    .map_err(|e| format!("runtime start task join failed: {e}"))?
+    start_runtime_task(resource_dir, port).await
 }
 
 #[tauri::command]
@@ -167,11 +184,32 @@ pub fn run() {
             check_updates,
             apply_update,
             package_root,
+            stdio_exe,
             start_runtime,
             stop_runtime,
             runtime_status,
             default_urls
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Aleph Connector");
+        .build(tauri::generate_context!())
+        .expect("error while building Aleph Connector")
+        .run(|_app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                let _ = runtime::stop();
+            }
+        });
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn start_runtime_task_runs_without_nested_block_on() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let result = tauri::async_runtime::block_on(async move {
+            tauri::async_runtime::spawn(super::start_runtime_task(None, Some(port)))
+                .await
+                .unwrap()
+        });
+        assert!(result.is_err());
+    }
 }

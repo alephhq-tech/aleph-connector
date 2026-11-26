@@ -17,7 +17,7 @@ pub fn write_mcp_config(
         "cursor" => write_cursor_like(config_path, mcp_url, "mcpServers"),
         "antigravity" => write_antigravity(config_path, mcp_url),
         "vsCode" => write_vscode(config_path, mcp_url),
-        "claudeDesktop" => write_claude_desktop(config_path, stdio_exe),
+        "claudeDesktop" => write_claude_desktop(config_path, mcp_url, stdio_exe),
         "claudeCode" => write_claude_code(mcp_url),
         "codexCli" => write_codex(config_path, mcp_url),
         _ => Err(format!("Unknown agent kind: {kind}")),
@@ -125,14 +125,14 @@ fn write_vscode(path: &str, mcp_url: &str) -> Result<String, String> {
 }
 
 /// Claude Desktop gets the bundled stdio bridge exe — no npx, no network fetch.
-fn write_claude_desktop(path: &str, stdio_exe: Option<&str>) -> Result<String, String> {
+fn write_claude_desktop(path: &str, mcp_url: &str, stdio_exe: Option<&str>) -> Result<String, String> {
     let exe = stdio_exe
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .ok_or("Claude Desktop needs the bundled stdio bridge (aleph-mcp-stdio.exe); it is missing from this install")?;
     write_json_root(path, move |obj| {
         let mut servers = take_object(obj, "mcpServers")?;
-        servers.insert(SERVER_NAME.to_string(), json!({ "command": exe }));
+        servers.insert(SERVER_NAME.to_string(), json!({ "command": exe, "env": { "AUTOCAD_MCP_URL": mcp_url } }));
         obj.insert("mcpServers".to_string(), Value::Object(servers));
         Ok(())
     })
@@ -290,6 +290,15 @@ mod tests {
         write_mcp_config("cursor", path.to_str().unwrap(), "http://127.0.0.1:8080/mcp", None).unwrap();
         let bak = fs::read_to_string(dir.join("mcp.json.bak")).unwrap();
         assert_eq!(bak, "{\"keep\": 1}");
+    }
+
+    #[test]
+    fn claude_desktop_uses_configured_runtime_url() {
+        let dir = temp_dir("claude-port");
+        let path = dir.join("claude_desktop_config.json");
+        write_mcp_config("claudeDesktop", path.to_str().unwrap(), "http://127.0.0.1:39447/mcp", Some("C:\\CadAI\\aleph-mcp-stdio.exe")).unwrap();
+        let doc: Value = serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(doc["mcpServers"]["aleph-connector"]["env"]["AUTOCAD_MCP_URL"], "http://127.0.0.1:39447/mcp");
     }
 
     #[test]

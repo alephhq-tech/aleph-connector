@@ -64,15 +64,43 @@ pub fn resolve_sidecar(resource_dir: Option<&Path>) -> Result<Sidecar, String> {
             Some(d) => d,
             None => break,
         };
-        let entry = d.join("apps").join("mcp-server").join("src").join("index.ts");
+        let entry = d
+            .join("apps")
+            .join("mcp-server")
+            .join("src")
+            .join("index.ts");
         if entry.is_file() {
-            return Ok(Sidecar::DevSource(
-                d.join("apps").join("mcp-server"),
-            ));
+            return Ok(Sidecar::DevSource(d.join("apps").join("mcp-server")));
         }
         dir = d.parent().map(Path::to_path_buf);
     }
     Err("no local runtime found: set ALEPH_MCP_SIDECAR, install the sidecar, or run from the repo checkout".into())
+}
+
+pub fn resolve_stdio_exe(resource_dir: Option<&Path>) -> Result<PathBuf, String> {
+    if let Some(dir) = resource_dir {
+        for candidate in [
+            dir.join("binaries").join("aleph-mcp-stdio.exe"),
+            dir.join("aleph-mcp-stdio.exe"),
+        ] {
+            if candidate.is_file() {
+                return Ok(candidate);
+            }
+        }
+    }
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("binaries")
+        .join("aleph-mcp-stdio.exe");
+    if dev.is_file() {
+        return Ok(dev);
+    }
+    Err("bundled aleph-mcp-stdio.exe not found".into())
+}
+
+fn ensure_port_available(port: u16) -> Result<(), String> {
+    std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
+        .map(|_| ())
+        .map_err(|e| format!("Local MCP port {port} is unavailable: {e}"))
 }
 
 fn default_port() -> u16 {
@@ -92,6 +120,17 @@ fn state_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("CadAI")
         .join("connector")
+}
+
+#[derive(Default)]
+struct SupervisorState {
+    desired: bool,
+    generation: u64,
+}
+
+fn supervisor_state() -> &'static Mutex<SupervisorState> {
+    static STATE: OnceLock<Mutex<SupervisorState>> = OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(SupervisorState::default()))
 }
 
 fn runtime_slot() -> &'static Mutex<Option<Child>> {
@@ -127,7 +166,7 @@ fn current_status() -> RuntimeStatus {
     let port = *port_slot().lock().unwrap_or_else(|e| e.into_inner());
     let running = {
         let mut guard = runtime_slot().lock().unwrap_or_else(|e| e.into_inner());
-        guard.as_mut().map(|c| child_running(c)).unwrap_or(false)
+        guard.as_mut().map(child_running).unwrap_or(false)
     };
     RuntimeStatus {
         running,
@@ -138,8 +177,68 @@ fn current_status() -> RuntimeStatus {
     }
 }
 
+fn spawn_supervisor(resource_dir: Option<PathBuf>, port: u16, generation: u64) {
+    std::thread::spawn(move || {
+        let mut backoff = 1u64;
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(backoff));
+            let guard = supervisor_state().lock().unwrap_or_else(|e| e.into_inner());
+            if !guard.desired || guard.generation != generation {
+                return;
+            }
+            let running = {
+                let mut child = runtime_slot().lock().unwrap_or_else(|e| e.into_inner());
+                child.as_mut().map(child_running).unwrap_or(false)
+            };
+            if running {
+                backoff = 1;
+            } else {
+                let restarted = start_child(resource_dir.as_deref(), Some(port));
+                let healthy = restarted
+                    .as_ref()
+                    .map(|status| status.healthy)
+                    .unwrap_or(false);
+                if !healthy {
+                    let mut child = runtime_slot().lock().unwrap_or_else(|e| e.into_inner());
+                    if let Some(mut process) = child.take() {
+                        let _ = process.kill();
+                        let _ = process.wait();
+                    }
+                }
+                backoff = if healthy { 1 } else { (backoff * 2).min(30) };
+            }
+        }
+    });
+}
+
 /// Spawn the local runtime. Idempotent: a live child is reported, not doubled.
 pub fn start(resource_dir: Option<&Path>, port: Option<u16>) -> Result<RuntimeStatus, String> {
+    let mut guard = supervisor_state().lock().unwrap_or_else(|e| e.into_inner());
+    let started = start_child(resource_dir, port)?;
+    if !started.healthy {
+        let mut child = runtime_slot().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(mut process) = child.take() {
+            let _ = process.kill();
+            let _ = process.wait();
+        }
+        return Err(format!(
+            "Runtime did not become healthy on port {}",
+            started.port
+        ));
+    }
+    if !guard.desired {
+        guard.desired = true;
+        guard.generation = guard.generation.wrapping_add(1);
+        spawn_supervisor(
+            resource_dir.map(Path::to_path_buf),
+            started.port,
+            guard.generation,
+        );
+    }
+    Ok(started)
+}
+
+fn start_child(resource_dir: Option<&Path>, port: Option<u16>) -> Result<RuntimeStatus, String> {
     let slot = runtime_slot();
     let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(child) = guard.as_mut() {
@@ -150,6 +249,7 @@ pub fn start(resource_dir: Option<&Path>, port: Option<u16>) -> Result<RuntimeSt
     }
 
     let port = port.unwrap_or_else(default_port);
+    ensure_port_available(port)?;
     let sidecar = resolve_sidecar(resource_dir)?;
     let state = state_dir();
     std::fs::create_dir_all(&state).map_err(|e| format!("state dir: {e}"))?;
@@ -168,8 +268,14 @@ pub fn start(resource_dir: Option<&Path>, port: Option<u16>) -> Result<RuntimeSt
         // The build stages guide skills next to the exe (binaries/skills/...); the runtime
         // reads them at startup and fails closed without them.
         if let Some(dir) = path.parent() {
-            command.env("ALEPH_DRAFTING_SKILL_DIR", dir.join("skills").join("autocad-drafting"));
-            command.env("ALEPH_PCCC_SKILLS_DIR", dir.join("skills").join("engineering"));
+            command.env(
+                "ALEPH_DRAFTING_SKILL_DIR",
+                dir.join("skills").join("autocad-drafting"),
+            );
+            command.env(
+                "ALEPH_PCCC_SKILLS_DIR",
+                dir.join("skills").join("engineering"),
+            );
         }
     }
     #[cfg(windows)]
@@ -200,6 +306,9 @@ pub fn start(resource_dir: Option<&Path>, port: Option<u16>) -> Result<RuntimeSt
 }
 
 pub fn stop() -> Result<RuntimeStatus, String> {
+    let mut supervisor = supervisor_state().lock().unwrap_or_else(|e| e.into_inner());
+    supervisor.desired = false;
+    supervisor.generation = supervisor.generation.wrapping_add(1);
     let mut guard = runtime_slot().lock().unwrap_or_else(|e| e.into_inner());
     if let Some(mut child) = guard.take() {
         let _ = child.kill();
@@ -223,6 +332,65 @@ fn sidecar_label(sidecar: &Sidecar) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn desired_runtime_restarts_after_unexpected_exit() {
+        let root =
+            std::env::temp_dir().join(format!("aleph-runtime-restart-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::env::set_var("ALEPH_LOCAL_STATE_DIR", &root);
+        std::env::set_var("ALEPH_LOCAL_IDENTITY_PATH", root.join("identity.json"));
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let started = start(Some(&bin), Some(port)).unwrap();
+        assert!(started.healthy);
+        let old_pid = runtime_slot().lock().unwrap().as_mut().unwrap().id();
+        runtime_slot()
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .kill()
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        loop {
+            let next_pid = runtime_slot().lock().unwrap().as_mut().map(|c| c.id());
+            if next_pid.is_some_and(|pid| pid != old_pid) && status().healthy {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "runtime was not restarted"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        stop().unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        assert!(!status().running, "explicit Stop must prevent recovery");
+        std::env::remove_var("ALEPH_LOCAL_STATE_DIR");
+        std::env::remove_var("ALEPH_LOCAL_IDENTITY_PATH");
+        std::fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn occupied_port_is_rejected_before_start() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        assert!(ensure_port_available(port).is_err());
+    }
+
+    #[test]
+    fn finds_stdio_in_packaged_binaries() {
+        let dir = std::env::temp_dir().join(format!("aleph-stdio-path-{}", uuid::Uuid::new_v4()));
+        let bin = dir.join("binaries");
+        std::fs::create_dir_all(&bin).unwrap();
+        let exe = bin.join("aleph-mcp-stdio.exe");
+        std::fs::write(&exe, b"test").unwrap();
+        assert_eq!(resolve_stdio_exe(Some(&dir)).unwrap(), exe);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn urls_are_loopback() {
