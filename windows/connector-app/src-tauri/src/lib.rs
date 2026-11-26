@@ -3,10 +3,10 @@ mod agents;
 mod identity;
 mod install;
 mod mcp_config;
+mod runtime;
 mod updates;
 
 use agents::DetectedAgent;
-use identity::AuthSession;
 use tauri::Manager;
 use updates::{IntegrationStatus, UpdateCheck};
 
@@ -16,8 +16,13 @@ fn detect_agents() -> Vec<DetectedAgent> {
 }
 
 #[tauri::command]
-fn write_mcp_config(kind: String, config_path: String, mcp_url: String) -> Result<String, String> {
-    mcp_config::write_mcp_config(&kind, &config_path, &mcp_url)
+fn write_mcp_config(
+    kind: String,
+    config_path: String,
+    mcp_url: String,
+    stdio_exe: Option<String>,
+) -> Result<String, String> {
+    mcp_config::write_mcp_config(&kind, &config_path, &mcp_url, stdio_exe.as_deref())
 }
 
 /// Deploy AGENTS.md + skills into agent client directories (after MCP config is written).
@@ -85,41 +90,29 @@ fn package_root() -> String {
 }
 
 #[tauri::command]
-fn ensure_device_id() -> Result<String, String> {
-    identity::ensure_device_id()
+fn start_runtime(app: tauri::AppHandle, port: Option<u16>) -> Result<runtime::RuntimeStatus, String> {
+    let resource_dir = app.path().resource_dir().ok();
+    tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
+        runtime::start(resource_dir.as_deref(), port)
+    }))
+    .map_err(|e| format!("runtime start task join failed: {e}"))?
 }
 
 #[tauri::command]
-fn write_identity(
-    device_id: String,
-    token: String,
-    expires_at: i64,
-) -> Result<(), String> {
-    identity::write_identity(&device_id, Some(&token), Some(expires_at))
+async fn stop_runtime() -> Result<runtime::RuntimeStatus, String> {
+    tauri::async_runtime::spawn_blocking(runtime::stop)
+        .await
+        .map_err(|e| format!("runtime stop task join failed: {e}"))?
 }
 
 #[tauri::command]
-fn save_session(session: AuthSession) -> Result<(), String> {
-    identity::save_session(&session)
+fn runtime_status() -> runtime::RuntimeStatus {
+    runtime::status()
 }
 
 #[tauri::command]
-fn load_session() -> Result<Option<AuthSession>, String> {
-    identity::load_session()
-}
-
-#[tauri::command]
-fn clear_session() -> Result<(), String> {
-    identity::clear_session()
-}
-
-#[tauri::command]
-fn default_urls() -> (String, String) {
-    let gateway = std::env::var("ALEPH_GATEWAY_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8090".into());
-    let mcp = std::env::var("ALEPH_MCP_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8080/mcp".into());
-    (gateway, mcp)
+fn default_urls() -> String {
+    std::env::var("ALEPH_MCP_URL").unwrap_or_else(|_| runtime::mcp_url(runtime::DEFAULT_PORT))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -174,11 +167,9 @@ pub fn run() {
             check_updates,
             apply_update,
             package_root,
-            ensure_device_id,
-            write_identity,
-            save_session,
-            load_session,
-            clear_session,
+            start_runtime,
+            stop_runtime,
+            runtime_status,
             default_urls
         ])
         .run(tauri::generate_context!())

@@ -127,10 +127,9 @@ interface ConnectedStack {
  * Streamable HTTP, exactly like an AI Desktop client would. This is the harness's actual purpose —
  * everything past this point exercises the Bridge and the AutoCAD plugin for real.
  */
-async function connectReal(mcpUrl: string, token: string): Promise<ConnectedStack> {
-  const transport = new StreamableHTTPClientTransport(new URL(mcpUrl), {
-    requestInit: { headers: { Authorization: `Bearer ${token}` } }
-  })
+async function connectReal(mcpUrl: string): Promise<ConnectedStack> {
+  // The local runtime needs no credential: it binds 127.0.0.1 and guards Host/Origin.
+  const transport = new StreamableHTTPClientTransport(new URL(mcpUrl))
   const client = new Client({ name: 'e2e-autocad-harness', version: '0.1.0' })
   await client.connect(transport)
   return { client, close: async () => client.close() }
@@ -784,7 +783,6 @@ const UNDO_STACK_DIVERGED_NOTE =
 interface CliOptions {
   mock: boolean
   mcpUrl: string
-  token: string
   scratchName?: string
   blockName: string
   reportOut: string
@@ -801,8 +799,6 @@ Options:
                            mcp-server (this is the only mode an agent without AutoCAD can run).
   --mcp-url <url>         Streamable HTTP endpoint of a running mcp-server (real mode only).
                            Default: $CADAI_E2E_MCP_URL or http://127.0.0.1:8080/mcp
-  --token <token>         Bearer token for --mcp-url (real mode only).
-                           Required in real mode: --token or $CADAI_E2E_TOKEN (signed credential)
   --scratch-name <name>   Expected name of the harness's own scratch document. The harness
                            refuses to run if the active document doesn't match.
                            Default: Drawing1.dwg (--mock) / CADAI-E2E-SCRATCH.dwg (real)
@@ -826,7 +822,6 @@ function parseArgs(argv: readonly string[]): CliOptions {
   const opts: CliOptions = {
     mock: false,
     mcpUrl: process.env.CADAI_E2E_MCP_URL ?? 'http://127.0.0.1:8080/mcp',
-    token: process.env.CADAI_E2E_TOKEN ?? '',
     blockName: 'CADAI-E2E-BLOCK',
     reportOut: path.join(os.tmpdir(), 'cadai-e2e-report.json'),
     help: false
@@ -841,10 +836,6 @@ function parseArgs(argv: readonly string[]): CliOptions {
         break
       case '--mcp-url':
         opts.mcpUrl = requireValue(argv, i + 1, arg)
-        i += 2
-        break
-      case '--token':
-        opts.token = requireValue(argv, i + 1, arg)
         i += 2
         break
       case '--scratch-name':
@@ -900,14 +891,9 @@ async function main(): Promise<void> {
   if (!opts.mock && !process.env.CADAI_E2E_MCP_URL && opts.mcpUrl === 'http://127.0.0.1:8080/mcp') {
     console.log(`No --mock and no --mcp-url override: assuming a local stack at ${opts.mcpUrl}.`)
   }
-  if (!opts.mock && !opts.token.trim()) {
-    throw new Error(
-      'Real AutoCAD E2E requires --token or CADAI_E2E_TOKEN with a signed Aleph credential'
-    )
-  }
   const scratchName = opts.scratchName ?? (opts.mock ? 'Drawing1.dwg' : 'CADAI-E2E-SCRATCH.dwg')
 
-  const stack = opts.mock ? await connectMock() : await connectReal(opts.mcpUrl, opts.token)
+  const stack = opts.mock ? await connectMock() : await connectReal(opts.mcpUrl)
   const startedAt = new Date().toISOString()
   try {
     await assertScratchDocument(stack.client, scratchName)

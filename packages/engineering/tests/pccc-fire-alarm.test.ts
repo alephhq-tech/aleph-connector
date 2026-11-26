@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import {
-  generateFireAlarmLayout,
-  classifyRoomSensor,
   sequenceDaisyChain,
   routeFireAlarmLoop,
   routeStructuralHighway,
-  planHighwayFireAlarm,
   resolvePcccBlocks,
   compilePcccDeviceCadEntities,
   type Point2D,
@@ -13,6 +10,8 @@ import {
   type FireAlarmDevice,
   type FireAlarmDeviceType
 } from '../src/index'
+import { generateFireAlarmLayout, classifyRoomSensor } from '../src/pccc/fire-alarm-layout.js'
+import { planHighwayFireAlarm } from '../src/pccc/fire-alarm-planner.js'
 
 describe('PCCC Fire Alarm Design & Routing (TCVN 7568-14:2025)', () => {
   const basementGarage: FireAlarmRoomInput = {
@@ -305,6 +304,105 @@ describe('PCCC Fire Alarm Design & Routing (TCVN 7568-14:2025)', () => {
       expect(p[1]).not.toBe(5000) // shaft.minY - 1000
       expect(p[1]).not.toBe(13000) // shaft.maxY + 1000
     }
+  })
+
+  it('routes a vertical span along a supplied vertical beam axis (regression: only horizontal axes were tried)', () => {
+    // Two devices stacked vertically with a shaft blocking the direct line between them. No
+    // horizontal axis can carry a vertical span without a fabricated horizontal leg, so before this
+    // fix the span failed NO_STRUCTURAL_HIGHWAY even though a real vertical beam carried it.
+    const devices: FireAlarmDevice[] = [
+      { id: 'A', type: 'HEAT_DETECTOR', x: 16000, y: 100000, zoneId: 'Z1', label: 'A' },
+      { id: 'B', type: 'HEAT_DETECTOR', x: 16000, y: 130000, zoneId: 'Z1', label: 'B' }
+    ]
+    const forbidden = [{ minX: 15000, minY: 110000, maxX: 17000, maxY: 120000 }]
+
+    const noX = routeStructuralHighway({
+      insUnits: 'mm',
+      zoneId: 'Z1',
+      devices,
+      forbiddenZones: forbidden
+    })
+    expect(noX.status).toBe('FAIL')
+    expect(noX.violations.some((v) => v.startsWith('NO_STRUCTURAL_HIGHWAY'))).toBe(true)
+
+    const withX = routeStructuralHighway({
+      insUnits: 'mm',
+      zoneId: 'Z1',
+      devices,
+      beamXHighways: [12000],
+      forbiddenZones: forbidden
+    })
+    expect(withX.status).toBe('PASS')
+    expect(withX.segments).toHaveLength(1)
+    // The trunk run lies on the supplied vertical axis (constant X = 12000), never a fabricated one.
+    const points = withX.segments[0]!.points
+    expect(points.filter((p) => p[0] === 12000).length).toBeGreaterThan(0)
+    for (const p of points) {
+      expect(p[0]).not.toBe(14000) // shaft.minX - 1000, the invented line the router must not draw
+      expect(p[0]).not.toBe(18000) // shaft.maxX + 1000
+    }
+  })
+
+  it('keeps the drawn symbol inside the room: a 400 mm-radius detector never prints across the wall', () => {
+    // The clause wall-clearance floor is 300 mm, but a point detector is a 400 mm-radius circle, so a
+    // centre at the clause minimum prints the graphic across the wall (the SUNLAND overhang). With a
+    // caller-tightened pitch that would otherwise place a column at 300 mm, the symbol-radius inset
+    // pushes the nearest detector out to the symbol radius; at a tiny symbol scale the clause floor
+    // governs and the 300 mm column stays.
+    const room: FireAlarmRoomInput = {
+      id: 'r',
+      name: 'R',
+      usage: 'garage',
+      boundary: [[0, 0], [14400, 0], [14400, 14400], [0, 14400]]
+    }
+    const full = generateFireAlarmLayout({
+      rooms: [room],
+      insUnits: 'mm',
+      junctionBoxLocation: [7200, 7200],
+      symbolScale: 1,
+      maxHeatSpacingMm: 600
+    })
+    expect(full.status).toBe('PASS')
+    const fullMinX = Math.min(...full.devices.filter((d) => d.type === 'HEAT_DETECTOR').map((d) => d.x))
+    expect(fullMinX).toBeGreaterThanOrEqual(400) // symbol radius, not the 300 mm clause floor
+
+    const tiny = generateFireAlarmLayout({
+      rooms: [room],
+      insUnits: 'mm',
+      junctionBoxLocation: [7200, 7200],
+      symbolScale: 0.1,
+      maxHeatSpacingMm: 600
+    })
+    expect(tiny.status).toBe('PASS')
+    const tinyMinX = Math.min(...tiny.devices.filter((d) => d.type === 'HEAT_DETECTOR').map((d) => d.x))
+    expect(tinyMinX).toBeLessThan(fullMinX) // a small symbol may sit at the clause floor
+  })
+
+  it('covers a narrow arm at the clause floor rather than leaving it uncovered (symbol inset fallback)', () => {
+    // A 700 mm-wide arm cannot hold a 400 mm-radius symbol anywhere (max inscribed half-width 350 mm
+    // < the 400 mm inset), so a hard symbol-radius inset would drop every arm cell and report
+    // UNCOVERED_CEILING. Coverage outranks a small overhang: the repair pass falls back to the clause
+    // floor (300 mm) and the arm stays protected.
+    const lShape: Point2D[] = [
+      [0, 0],
+      [14400, 0],
+      [14400, 2400],
+      [700, 2400],
+      [700, 14400],
+      [0, 14400]
+    ]
+    const res = generateFireAlarmLayout({
+      rooms: [{ id: 'r', name: 'L', usage: 'garage', boundary: lShape }],
+      insUnits: 'mm',
+      junctionBoxLocation: [7200, 1200],
+      symbolScale: 1
+    })
+    expect(res.status).toBe('PASS')
+    expect(res.violations).toEqual([])
+    const arm = res.devices.filter((d) => d.type === 'HEAT_DETECTOR' && d.x < 700 && d.y > 2400)
+    expect(arm.length).toBeGreaterThan(0)
+    // Placed at the clause floor, not the 400 mm symbol inset the arm cannot satisfy.
+    expect(Math.min(...arm.map((d) => d.x))).toBeLessThan(400)
   })
 
   it('resolves every device type onto block definitions that actually exist in the library', () => {

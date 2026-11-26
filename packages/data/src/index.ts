@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 
+export * from './local.js'
+
 export interface CadDocumentRecord {
   id: string
 }

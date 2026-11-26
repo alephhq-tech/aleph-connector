@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  DevBridgeTokenService,
+  LocalBridgeTokenService,
   GrantDeniedError,
   JsonFileGrantStore,
-  devGrantFile
+  localGrantFile
 } from './bridgeToken.js'
 
 /**
@@ -24,12 +24,12 @@ const IDENTITY = { deviceId: 'device_unit_1', userId: 'user_unit', workspaceId: 
 
 let dir = ''
 let grants: JsonFileGrantStore
-let tokens: DevBridgeTokenService
+let tokens: LocalBridgeTokenService
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'aleph-dev-token-'))
   grants = new JsonFileGrantStore(join(dir, 'grants.json'))
-  tokens = new DevBridgeTokenService(SECRET, grants)
+  tokens = new LocalBridgeTokenService(SECRET, grants)
 })
 
 afterAll(() => {
@@ -44,13 +44,13 @@ describe('dev grant file resolution', () => {
    * the module, not the working directory.
    */
   test('the default grant path does not depend on the process cwd', () => {
-    const here = devGrantFile({})
+    const here = localGrantFile({})
     const elsewhere = spawnSync(
       process.execPath,
       [
         '-e',
-        `import { devGrantFile } from ${JSON.stringify(fileURLToPath(new URL('./bridgeToken.ts', import.meta.url)))};` +
-          'console.log(devGrantFile({}))'
+        `import { localGrantFile } from ${JSON.stringify(fileURLToPath(new URL('./bridgeToken.ts', import.meta.url)))};` +
+          'console.log(localGrantFile({}))'
       ],
       { cwd: tmpdir(), encoding: 'utf8' }
     )
@@ -58,13 +58,13 @@ describe('dev grant file resolution', () => {
     expect(elsewhere.stdout.trim()).toBe(here)
   })
 
-  test('ALEPH_DEV_GRANT_FILE overrides the default', () => {
+  test('ALEPH_LOCAL_GRANT_FILE overrides the default', () => {
     const override = join(dir, 'elsewhere.json')
-    expect(devGrantFile({ ALEPH_DEV_GRANT_FILE: override })).toBe(override)
+    expect(localGrantFile({ ALEPH_LOCAL_GRANT_FILE: override })).toBe(override)
   })
 })
 
-describe('DevBridgeTokenService wire format', () => {
+describe('LocalBridgeTokenService wire format', () => {
   test('mints a compact three-part token whose header says ABT/HS256', async () => {
     const { token } = await tokens.mint(IDENTITY)
     const parts = token.split('.')
@@ -108,7 +108,7 @@ describe('DevBridgeTokenService wire format', () => {
   })
 
   test('a token signed under a different secret fails on signature, not grant', async () => {
-    const other = new DevBridgeTokenService('a-completely-different-secret-xx', grants)
+    const other = new LocalBridgeTokenService('a-completely-different-secret-xx', grants)
     const forged = (await other.mint(IDENTITY)).token
     const result = await tokens.verifyDetailed(forged)
     expect(result).toEqual({ ok: false, reason: 'signature' })
@@ -169,11 +169,11 @@ describe('grant enforcement parity with the production table', () => {
   test('the grant file survives a process-equivalent restart', async () => {
     const minted = await tokens.mint({ ...IDENTITY, deviceId: 'device_persist_1' })
     const reopened = new JsonFileGrantStore(join(dir, 'grants.json'))
-    const reloaded = new DevBridgeTokenService(SECRET, reopened)
+    const reloaded = new LocalBridgeTokenService(SECRET, reopened)
     expect((await reloaded.verifyDetailed(minted.token)).ok).toBe(true)
   })
 
   test('a short secret is refused at construction, not silently weakened', () => {
-    expect(() => new DevBridgeTokenService('short', grants)).toThrow(/at least 16 characters/)
+    expect(() => new LocalBridgeTokenService('short', grants)).toThrow(/at least 16 characters/)
   })
 })

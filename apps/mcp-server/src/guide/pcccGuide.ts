@@ -29,6 +29,9 @@ export interface PcccGuide {
 }
 
 function engineeringSkillsDir(): string {
+  // ALEPH_PCCC_SKILLS_DIR points at the skill copy shipped next to a compiled sidecar exe.
+  const override = process.env.ALEPH_PCCC_SKILLS_DIR?.trim()
+  if (override) return override
   // apps/mcp-server/src/guide → repo packages/engineering/skills
   const here = dirname(fileURLToPath(import.meta.url))
   return join(here, '..', '..', '..', '..', 'packages', 'engineering', 'skills')

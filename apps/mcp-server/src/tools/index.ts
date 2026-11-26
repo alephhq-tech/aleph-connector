@@ -18,6 +18,8 @@ import { registerPcccOverlayTools } from './pcccOverlay.js'
 import { registerPcccFireAlarmTools } from './pcccFireAlarm.js'
 import { createCadStateSource } from './drawing.js'
 import { createRegionCache } from './pcccRegion.js'
+import { buildSnapshot } from '../local/snapshotBuilder.js'
+import { localStore } from '../local/store.js'
 export function registerAllTools(
   server: McpServer,
   bridge: BridgeClient,
@@ -33,7 +35,24 @@ export function registerAllTools(
   // One CAD State seam for both tools that read plan geometry: `drawing.inspect_floorplan` publishes
   // room refs from it, `pccc_fire_alarm_overlay` resolves them through it. Separate sources could
   // disagree about what the drawing says.
-  const cadState = workspaceId ? createCadStateSource(workspaceId, bridge) : undefined
+  const store = localStore()
+  const cadState = workspaceId
+    ? createCadStateSource(
+        workspaceId,
+        bridge,
+        store
+          ? async (identity) =>
+              identity.revision
+                ? buildSnapshot(bridge, store, workspaceId, {
+                    documentId: identity.documentId,
+                    documentName: identity.documentName,
+                    fingerprintGuid: identity.fingerprintGuid,
+                    revision: identity.revision
+                  })
+                : null
+          : undefined
+      )
+    : undefined
   // One region cache so inspect answers the next overlay preview without a second AutoCAD walk.
   const regionCache = createRegionCache()
   registerDrawingTools(server, bridge, pin, cadState, regionCache)

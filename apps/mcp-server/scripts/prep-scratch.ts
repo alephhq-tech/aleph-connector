@@ -17,7 +17,7 @@
  *   --close   teardown: close the scratch tab without saving, list what remains, never touch another
  *             operator's drawing.
  *
- * Configuration matches the harness: CADAI_E2E_MCP_URL, CADAI_E2E_TOKEN, CADAI_E2E_SCRATCH_NAME.
+ * Configuration matches the harness: CADAI_E2E_MCP_URL, CADAI_E2E_SCRATCH_NAME.
  */
 import { mkdirSync } from 'node:fs'
 import { join, win32 } from 'node:path'
@@ -75,12 +75,8 @@ function findScratch(documents: OpenDocument[], scratchName: string): OpenDocume
 
 async function main(): Promise<void> {
   const mcpUrl = process.env.CADAI_E2E_MCP_URL ?? 'http://127.0.0.1:8080/mcp'
-  const token = process.env.CADAI_E2E_TOKEN ?? ''
   const scratchName = process.env.CADAI_E2E_SCRATCH_NAME ?? 'CADAI-E2E-SCRATCH.dwg'
   const closeMode = process.argv.slice(2).includes('--close')
-  if (!token.trim()) {
-    throw new Error('CADAI_E2E_TOKEN is required (OAuth access_token from scripts/oauth-access-token.ts)')
-  }
   let url: URL
   try {
     url = new URL(mcpUrl)
@@ -88,9 +84,7 @@ async function main(): Promise<void> {
     throw new Error(`CADAI_E2E_MCP_URL is not a valid URL: ${mcpUrl}`)
   }
 
-  const transport = new StreamableHTTPClientTransport(url, {
-    requestInit: { headers: { Authorization: `Bearer ${token}` } }
-  })
+  const transport = new StreamableHTTPClientTransport(url)
   const client = new Client({ name: 'aleph-prep-scratch', version: '0.1.0' })
   await client.connect(transport)
   try {

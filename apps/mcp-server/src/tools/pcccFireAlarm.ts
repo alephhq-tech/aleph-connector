@@ -5,7 +5,6 @@ import type { CreateEntityParams, EntityOperation } from '@aleph-connector/cad-p
 import {
   areaOf,
   bboxOf,
-  planHighwayFireAlarm,
   resolvePcccBlocks,
   traceRegionBoundaries,
   DEFAULT_PCCC_SYMBOL_GEOMETRY,
@@ -19,6 +18,10 @@ import {
   type PcccBlockAssignment,
   type PlanReadbackReport
 } from '@aleph-connector/engineering'
+// The fire-alarm planner is not part of the public engineering API (approach 1: the overlay tool
+// is the only entry point). Reach it by deep import so no client can call the planner directly and
+// bypass the CAD-geometry gates.
+import { planHighwayFireAlarm } from '@aleph-connector/engineering/src/pccc/fire-alarm-planner.js'
 import { resolveSymbolCatalogEntry } from '@aleph-connector/cad-state'
 import {
   checkOperationsScope,
@@ -48,6 +51,7 @@ import {
   operationsOutsideRegion,
   resolvedRoomSummary,
   resolveDesignRegion,
+  resolveExcludedRings,
   type RegionCache,
   verifyBlockFootprints
 } from './pcccRegion.js'
@@ -147,7 +151,34 @@ const roomSchema = z
     // Omit this to take the closed outline from the drawing itself (resolved via `ref`/`name` against
     // the CAD State snapshot). With acceptCallerGeometry:true only, when the sheet cannot bind a ring.
     boundary: z.array(point2d).min(3).optional(),
-    heightMm: z.number().optional()
+    heightMm: z.number().optional(),
+    // Spaces inside this room to skip coverage for (a server room, a stair void, a wet area with no
+    // combustibles). Preferred: named by the same ref/label inspect published, so the outline is the
+    // drawing's own ring, not a box drawn around where the model thinks the space stands.
+    excludedRefs: z
+      .array(
+        z
+          .object({
+            ref: z.string().optional(),
+            name: z.string().optional()
+          })
+          .refine((entry) => entry.ref !== undefined || entry.name !== undefined, {
+            message: 'an excluded space needs `ref` or `name`'
+          })
+      )
+      .optional()
+      .describe(
+        'Spaces inside this room to skip coverage for, each addressed by the ref (or label) that '
+          + 'drawing.inspect_floorplan reported. Their closed outlines come from the drawing.'
+      ),
+    excludedBoundaries: z
+      .array(z.array(point2d).min(3))
+      .optional()
+      .describe(
+        'Rings inside this room to skip coverage. Requires acceptCallerGeometry:true, and only for a '
+          + 'space the inspect could not bind to a label, taken from entity.traceBoundary — never typed '
+          + 'from a brief. Prefer excludedRefs.'
+      )
   })
   .refine(
     (room) => room.ref !== undefined || room.name !== undefined || room.boundary !== undefined,
@@ -227,7 +258,11 @@ const previewInput = z.object({
         'without it the plan fails closed with NO_PANEL_ANCHOR; the planner never invents a ' +
         'junction-box location.'
     ),
-  beamYHighways: z.array(z.number()).optional().describe('Y coordinates of structural beam axes.'),
+  beamYHighways: z.array(z.number()).optional().describe('Y coordinates of horizontal structural beam axes.'),
+  beamXHighways: z
+    .array(z.number())
+    .optional()
+    .describe('X coordinates of vertical structural beam axes; a span no horizontal axis carries may still run along one.'),
   symbolScale: z
     .number()
     .positive()
@@ -554,12 +589,20 @@ function geometryPoints(row: SnapshotRow): Point2D[] {
   return points
 }
 
-/** Horizontal structural axes read from real beam-layer entities; no matching evidence means []. */
-export function deriveBeamYHighways(
+/**
+ * Structural axes read from real beam-layer entities, along one coordinate.
+ * `axis === 'y'` keeps horizontal segments (constant Y); `axis === 'x'` keeps vertical ones
+ * (constant X). No matching evidence means []. A span whose endpoints sit on a vertical beam
+ * grid but no horizontal one used to fail NO_STRUCTURAL_HIGHWAY even though a real beam carried it.
+ */
+function deriveBeamAxes(
   rows: readonly SnapshotRow[],
-  unitsPerMetre: number | null
+  unitsPerMetre: number | null,
+  axis: 'x' | 'y'
 ): number[] {
   const tolerance = unitsPerMetre === null ? 1e-6 : unitsPerMetre * 0.05
+  const fixed = axis === 'y' ? 1 : 0
+  const along = axis === 'y' ? 0 : 1
   const axes: number[] = []
   for (const row of rows) {
     if (!structuralLayer(row.layer)) continue
@@ -567,12 +610,29 @@ export function deriveBeamYHighways(
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1]!
       const b = points[i]!
-      if (Math.abs(a[1] - b[1]) > tolerance || Math.abs(a[0] - b[0]) <= tolerance) continue
-      const y = (a[1] + b[1]) / 2
-      if (!axes.some((existing) => Math.abs(existing - y) <= tolerance)) axes.push(y)
+      if (Math.abs(a[fixed] - b[fixed]) > tolerance || Math.abs(a[along] - b[along]) <= tolerance)
+        continue
+      const v = (a[fixed] + b[fixed]) / 2
+      if (!axes.some((existing) => Math.abs(existing - v) <= tolerance)) axes.push(v)
     }
   }
   return axes.sort((a, b) => a - b)
+}
+
+/** Horizontal structural axes read from real beam-layer entities; no matching evidence means []. */
+export function deriveBeamYHighways(
+  rows: readonly SnapshotRow[],
+  unitsPerMetre: number | null
+): number[] {
+  return deriveBeamAxes(rows, unitsPerMetre, 'y')
+}
+
+/** Vertical structural axes read from real beam-layer entities; no matching evidence means []. */
+export function deriveBeamXHighways(
+  rows: readonly SnapshotRow[],
+  unitsPerMetre: number | null
+): number[] {
+  return deriveBeamAxes(rows, unitsPerMetre, 'x')
 }
 
 export function registerPcccFireAlarmTools(
@@ -735,7 +795,7 @@ export function registerPcccFireAlarmTools(
         if (payload.status !== 'committed') {
           throw new Error(
             `Plan "${plan.planId}" was not committed (apply reported status ` +
-              `"${String(payload.status)}") — nothing is reported as drawn.`
+              `"${String(payload.status)}", error: ${JSON.stringify(payload.error)}) — nothing is reported as drawn.`
           )
         }
         if (refs.length === 0 && plan.cadOperations.length > 0) {
@@ -876,15 +936,17 @@ export function registerPcccFireAlarmTools(
           areaM2?: number
         }> = []
 
-        const callerRooms = (input.rooms ?? []).some((r) => r.boundary !== undefined)
+        const callerRooms = (input.rooms ?? []).some(
+          (r) => r.boundary !== undefined || (r.excludedBoundaries && r.excludedBoundaries.length > 0)
+        )
         if (
           (callerRooms || (input.elevatorShafts && input.elevatorShafts.length > 0)) &&
           input.acceptCallerGeometry !== true
         ) {
           regionProblems.push(
-            'CALLER_GEOMETRY_REQUIRES_ACCEPT: rooms[].boundary / elevatorShafts need ' +
-              'acceptCallerGeometry:true (drafting-only). Prefer room refs from drawing.inspect_floorplan ' +
-              'and elevatorPickPoints so outlines come from CAD.'
+            'CALLER_GEOMETRY_REQUIRES_ACCEPT: rooms[].boundary / rooms[].excludedBoundaries / ' +
+              'elevatorShafts need acceptCallerGeometry:true (drafting-only). Prefer room refs and ' +
+              'excludedRefs from drawing.inspect_floorplan and elevatorPickPoints so outlines come from CAD.'
           )
         }
 
@@ -895,16 +957,25 @@ export function registerPcccFireAlarmTools(
             const located = locateRoom(designRegion.rooms, room)
             // Prefer CAD outline whenever inspect published one; caller polygon is draft-only fallback.
             const fromDrawing = located?.boundary
-            const boundary =
-              fromDrawing ??
-              (input.acceptCallerGeometry === true ? room.boundary : undefined)
+            // A room the sheet already names but could not bound must NOT be filled in with typed
+            // coordinates: that is how grid-axis rectangles (Trục 1/6/A/D) became "room boundaries"
+            // and detectors landed outside the real walls. Only a room the sheet does not know at all
+            // may take a caller polygon (still checked against the plan region below).
+            const callerBoundary =
+              !located && input.acceptCallerGeometry === true ? room.boundary : undefined
+            const boundary = fromDrawing ?? callerBoundary
             const name = room.name ?? located?.name ?? room.ref ?? room.id
             if (!boundary) {
               const why = !located
                 ? room.ref
                   ? `no room on this sheet has the ref "${room.ref}"`
                   : `no room labelled "${room.name}" was found in ${input.floorplanName}`
-                : `its boundary is ${located.boundaryStatus}: ${located.boundaryEvidence ?? 'no single closed ring contains the label'}`
+                : located.boundaryStatus === 'verified'
+                  ? 'its verified outline could not be read from the CAD State snapshot' 
+                  : `its boundary is ${located.boundaryStatus}: ${located.boundaryEvidence ?? 'no single closed ring contains the label'}`
+                    + (room.boundary
+                      ? ' — a typed polygon was supplied but is rejected for a room the drawing already names; close the real ring in the drawing (or pass elevatorPickPoints) instead of typing coordinates'
+                      : '')
               if (room.usage === 'elevator') {
                 // A shaft is a hole in the design, not a room to protect: an unbounded elevator still
                 // gets traced from its label rather than blocking the whole plan.
@@ -940,12 +1011,26 @@ export function registerPcccFireAlarmTools(
               )
               continue
             }
+            // Spaces to skip coverage for inside this room. Their outlines come from the drawing
+            // (excludedRefs resolved against the same CAD read as the room), never a box typed around
+            // where the model thinks the space stands. A typed ring is accepted only with
+            // acceptCallerGeometry:true, and every ring must actually overlap the room — the planner
+            // subtracts an exclusion's whole area regardless of where it sits, so a zone that misses
+            // the room would overstate coverage while protecting the space it was named for.
+            const excluded = resolveExcludedRings(
+              designRegion.rooms,
+              room.excludedRefs ?? [],
+              input.acceptCallerGeometry === true ? (room.excludedBoundaries ?? []) : [],
+              boundary
+            )
+            regionProblems.push(...excluded.problems)
             plannedRooms.push({
               id: room.id,
               name,
               usage: room.usage,
               boundary,
-              ...(room.heightMm !== undefined && { heightMm: room.heightMm })
+              ...(room.heightMm !== undefined && { heightMm: room.heightMm }),
+              ...(excluded.rings.length > 0 && { excludedBoundaries: excluded.rings })
             })
             plannedGeometry.push({
               id: room.id,
@@ -1082,6 +1167,10 @@ export function registerPcccFireAlarmTools(
           input.beamYHighways && input.beamYHighways.length > 0
             ? input.beamYHighways
             : deriveBeamYHighways(evidenceRows, units?.unitsPerMetre ?? null)
+        const effectiveBeamXHighways =
+          input.beamXHighways && input.beamXHighways.length > 0
+            ? input.beamXHighways
+            : deriveBeamXHighways(evidenceRows, units?.unitsPerMetre ?? null)
 
         // Elevator shafts named by an interior point become real polygons through the plugin's native
         // boundary trace — the bridge between "the model can see the elevator" and "the router must
@@ -1137,6 +1226,7 @@ export function registerPcccFireAlarmTools(
           }),
           stairDoors: input.stairDoors,
           beamYHighways: effectiveBeamYHighways,
+          ...(effectiveBeamXHighways.length > 0 && { beamXHighways: effectiveBeamXHighways }),
           symbolScale: input.symbolScale,
           layerDevices: input.layerDevices,
           layerWiring: input.layerWiring,
@@ -1181,13 +1271,20 @@ export function registerPcccFireAlarmTools(
               externalDefinitionDocumentName = library.name
               libraryToClose = library.name
             }
+            const allKnownDefinitions = [
+              ...(pendingDefinitions ?? []),
+              ...Object.entries(DEFAULT_PCCC_BLOCK_NAMES).map(([type, blockName]) => ({
+                blockName,
+                entities: DEFAULT_PCCC_SYMBOL_GEOMETRY[type as FireAlarmDeviceType]
+              }))
+            ]
             footprintCheck = await verifyBlockFootprints(
               bridge,
               planResult.cadOperations,
               designRegion.bounds,
               target.name,
               {
-                inlineDefinitions: pendingDefinitions ?? [],
+                inlineDefinitions: allKnownDefinitions,
                 externalDefinitionDocumentName,
                 externalBlockNames: pendingImport?.blockNames ?? []
               }

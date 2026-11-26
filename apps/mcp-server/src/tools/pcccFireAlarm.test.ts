@@ -7,7 +7,8 @@ import type { BridgeClient, BridgeRequestOptions } from '../bridge/BridgeClient.
 import {
   registerPcccFireAlarmTools,
   pcccFireAlarmInputSchema,
-  deriveBeamYHighways
+  deriveBeamYHighways,
+  deriveBeamXHighways
 } from './pcccFireAlarm.js'
 import { registerDrawingTools } from './drawing.js'
 import { roomRef, type SnapshotRow } from './floorplanCadState.js'
@@ -598,6 +599,7 @@ describe('pccc_fire_alarm_overlay symbol resolution', () => {
     expect((out.violations as string[]).join(' ')).toContain('ROOM_OUTSIDE_FLOORPLAN')
   })
 
+
   it('names a plan whose title resolves to several copies instead of guessing one', async () => {
     class AmbiguousBridge extends SpyBridgeClient {
       override async request<M extends RpcMethodName>(
@@ -945,6 +947,49 @@ describe('pccc_fire_alarm_overlay rooms by CAD reference', () => {
     expect(bridge.seen).not.toContain(RpcMethod.OperationsApply)
   })
 
+  it('rejects a typed boundary for a room the sheet already names but cannot bound', async () => {
+    // The SUNLAND failure: the agent named the real garage label but typed a grid-axis rectangle
+    // (Trục 1/6/A/D) as its boundary, so detectors were placed outside the real walls. A room the
+    // drawing already names but cannot bound must NOT be filled in with typed coordinates — it has
+    // to be closed in the drawing or referenced by a verified ref. The typed box here sits inside
+    // the plan region, so the old gate would have drawn it; the new gate blocks it.
+    const bridge = new AttributedBridge()
+    const asClient = bridge as unknown as BridgeClient
+    await seedLibrary(asClient)
+    // The label is on the sheet, but no verified snapshot backs its outline: located, unresolved.
+    const cadState = ringSource({ snapshotFor: async () => null })
+    const handler = fireAlarmHandler(asClient, cadState)
+
+    const out = json(
+      await handler(
+        refPreview(
+          [
+            {
+              id: 'garage',
+              name: 'GARA \u0110\u1EC2 XE T\u1EA6NG H\u1EA6M',
+              usage: 'garage',
+              boundary: [
+                [10000, 100000],
+                [28000, 100000],
+                [28000, 112000],
+                [10000, 112000]
+              ]
+            }
+          ],
+          { acceptCallerGeometry: true as const }
+        ),
+        { mcpReq: { id: 1 } }
+      )
+    )
+
+    expect(out.status).not.toBe('PASS')
+    const text = (out.violations as string[]).join(' ')
+    expect(text).toContain('ROOM_REF_UNRESOLVED')
+    expect(text).toContain('rejected for a room the drawing already names')
+    // Nothing drawn: the plan is blocked before apply.
+    expect(bridge.seen).not.toContain(RpcMethod.OperationsApply)
+  })
+
   it('a ref from an earlier revision misses rather than binding to a different room', async () => {
     const bridge = new AttributedBridge()
     const asClient = bridge as unknown as BridgeClient
@@ -1148,6 +1193,49 @@ describe('pccc_fire_alarm_overlay CAD-derived junction box / beam axis / floor-e
     expect((out.violations as string[]).join(' ')).toContain('CALLER_GEOMETRY_REQUIRES_ACCEPT')
   })
 
+  it('refuses a typed excludedBoundary without acceptCallerGeometry (gate covers exclusions too)', async () => {
+    // The caller-geometry gate used to look only at rooms[].boundary / elevatorShafts, so a typed
+    // excluded ring — a box drawn around where the model thinks a server room stands — slipped through
+    // without acceptCallerGeometry:true and silently carved coverage out of the plan.
+    const bridge = new AttributedBridge() as unknown as BridgeClient
+    await bridge.request(RpcMethod.DrawingSetup, { insUnits: 'mm' })
+    await seedLibrary(bridge)
+    const handler = fireAlarmHandler(bridge, sourceWithRows([]))
+
+    const out = json(
+      await handler(
+        {
+          operation: 'preview',
+          floorplanName: 'MẶT BẰNG TẦNG HẦM',
+          symbolLibraryPath: LIBRARY_PATH,
+          documentName: TARGET_DOC,
+          rooms: [
+            {
+              id: 'garage',
+              usage: 'garage',
+              boundary: [
+                [10000, 100000],
+                [28000, 100000],
+                [28000, 112000],
+                [10000, 112000]
+              ],
+              excludedBoundaries: [[
+                [12000, 102000],
+                [16000, 102000],
+                [16000, 106000],
+                [12000, 106000]
+              ]]
+            }
+          ],
+          junctionBoxLocation: [11000, 101000],
+          beamYHighways: [105500]
+        },
+        { mcpReq: { id: 1 } }
+      )
+    )
+    expect((out.violations as string[]).join(' ')).toContain('CALLER_GEOMETRY_REQUIRES_ACCEPT')
+  })
+
   it('auto-derives the junction-box location from the one real block instance in the region', async () => {
     const bridge = new AttributedBridge() as unknown as BridgeClient
     await bridge.request(RpcMethod.DrawingSetup, { insUnits: 'mm' })
@@ -1234,5 +1322,24 @@ describe('pccc_fire_alarm_overlay CAD-derived junction box / beam axis / floor-e
       0.001
     )
     expect(derived).toEqual([])
+  })
+
+  it('derives a vertical structural axis from beam-layer geometry (regression: only horizontal axes were read)', () => {
+    const rows: SnapshotRow[] = [
+      {
+        handle: 'V1',
+        kind: 'line',
+        layer: 'S-BEAM',
+        geometry: { start: { x: 16000, y: 100000 }, end: { x: 16000, y: 130000 } }
+      },
+      {
+        handle: 'H1',
+        kind: 'line',
+        layer: 'S-BEAM',
+        geometry: { start: { x: 10000, y: 105500 }, end: { x: 30000, y: 105500 } }
+      }
+    ]
+    expect(deriveBeamXHighways(rows, 0.001)).toEqual([16000])
+    expect(deriveBeamYHighways(rows, 0.001)).toEqual([105500])
   })
 })

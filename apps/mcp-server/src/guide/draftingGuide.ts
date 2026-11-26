@@ -1,4 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod/v4'
 import { portableInputSchema } from '../tools/portableSchema.js'
@@ -12,7 +14,13 @@ import {
 
 // The skill ships as plain files so it can also be installed into other agents unchanged; this
 // module serves those same files over MCP rather than keeping a second copy of the text.
-const SKILL_DIR = new URL('../../skills/autocad-drafting/', import.meta.url)
+// ALEPH_DRAFTING_SKILL_DIR points at the copy shipped next to a compiled sidecar exe; the
+// import.meta.url default covers `bun run src/index.ts` in a checkout.
+const SKILL_DIR = process.env.ALEPH_DRAFTING_SKILL_DIR?.trim()
+  ? // Trailing separator required: `new URL('references/', base)` drops the last segment without one.
+    pathToFileURL(process.env.ALEPH_DRAFTING_SKILL_DIR.trim().replace(/[\\/]+$/, '') + '/')
+  : new URL('../../skills/autocad-drafting/', import.meta.url)
+
 const URI_ROOT = 'autocad://guide/drafting/'
 const PROMPT_NAME = 'autocad-drafting-guide'
 const TOOL_NAME = 'guide'
@@ -28,7 +36,7 @@ interface DraftingGuide {
   files: GuideFile[]
   /** SKILL.md without its YAML frontmatter. */
   body: string
-  /** Short ruleset for the MCP `instructions` field, built from SKILL.md's "Rules" section. */
+  /** Short pointer for the MCP `instructions` field; the rules themselves live in SKILL.md. */
   instructions: string
   pccc: PcccGuide
 }
@@ -59,10 +67,8 @@ export function loadDraftingGuide(): DraftingGuide {
   const pccc = loadPcccGuide()
   const instructions = [
     "This server drives a live AutoCAD on the user's own machine.",
-    `Before drawing, call the \`${TOOL_NAME}\` tool (or read the "${PROMPT_NAME}" prompt / the ${URI_ROOT}SKILL.md resource; references under ${URI_ROOT}references/).`,
-    pccc.instructionsLine,
-    '',
-    section(body, 'Rules')
+    `Before drawing, call the \`${TOOL_NAME}\` tool (or read the "${PROMPT_NAME}" prompt / the ${URI_ROOT}SKILL.md resource; references under ${URI_ROOT}references/). That skill is the single source of the drafting workflow and rules; do not restate them here.`,
+    pccc.instructionsLine
   ].join('\n')
 
   return { files, body, instructions, pccc }
@@ -172,15 +178,4 @@ function registerGuideTool(server: McpServer, guide: DraftingGuideWithPccc): voi
 
 function firstHeading(markdown: string, fallback: string): string {
   return /^# (.+)$/m.exec(markdown)?.[1]?.trim() ?? fallback
-}
-
-function section(markdown: string, heading: string): string {
-  const marker = `\n## ${heading}\n`
-  const start = markdown.indexOf(marker)
-  if (start === -1) {
-    throw new Error(`skills/autocad-drafting/SKILL.md has no "## ${heading}" section`)
-  }
-  const rest = markdown.slice(start + marker.length)
-  const end = rest.search(/\n## /)
-  return (end === -1 ? rest : rest.slice(0, end)).trim()
 }

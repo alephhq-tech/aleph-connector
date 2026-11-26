@@ -13,8 +13,11 @@ export interface StructuralGridHighwayInput {
   zoneId: string
   devices: FireAlarmDevice[]
   startDeviceId?: string
-  /** Structural grid lines (e.g. Axis B at Y=105500, Axis D at Y=117000) */
+  /** Horizontal structural grid lines (e.g. Axis B at Y=105500, Axis D at Y=117000) */
   beamYHighways?: number[]
+  /** Vertical structural grid lines (e.g. Axis 3 at X=16000). A span no horizontal axis can
+   * carry may still run along a vertical beam; without these it fails NO_STRUCTURAL_HIGHWAY. */
+  beamXHighways?: number[]
   /** Elevator core bounding box [minX, minY, maxX, maxY] strictly forbidden to cross */
   forbiddenZones?: Array<{ minX: number; minY: number; maxX: number; maxY: number }>
   layerWiring?: string
@@ -69,7 +72,8 @@ export function routeViaBeamHighway(
   end: Point2D,
   highwayYList: number[],
   forbiddenZones: Array<{ minX: number; minY: number; maxX: number; maxY: number }> = [],
-  unitsPerMm: number
+  unitsPerMm: number,
+  highwayXList: number[] = []
 ): Point2D[] | null {
   // Practical Engineering Rule 1: Direct collinear alignment (same horizontal beam line or row)
   if (Math.abs(start[1] - end[1]) < 800 * unitsPerMm) {
@@ -110,57 +114,86 @@ export function routeViaBeamHighway(
     }
   }
 
-  // Practical Engineering Rule 4: Long-distance traversal around forbidden zones (via Beam Highway)
-  const validHighways = highwayYList.filter((hy) => {
-    const minX = Math.min(start[0], end[0])
-    const maxX = Math.max(start[0], end[0])
+  // Practical Engineering Rule 4: Long-distance traversal around forbidden zones (via Beam Highway).
+  // A trunk run may lie on a horizontal beam axis (constant Y) or a vertical one (constant X);
+  // previously only horizontal axes were tried, so a span whose endpoints sit on a vertical beam
+  // grid but no horizontal one failed NO_STRUCTURAL_HIGHWAY even though a real beam carried it.
+  const spanX = { minX: Math.min(start[0], end[0]), maxX: Math.max(start[0], end[0]) }
+  const spanY = { minY: Math.min(start[1], end[1]), maxY: Math.max(start[1], end[1]) }
+  const validY = highwayYList.filter((hy) => {
     for (const fz of forbiddenZones) {
-      if (hy >= fz.minY && hy <= fz.maxY && maxX >= fz.minX && minX <= fz.maxX) {
-        return false // Blocked by elevator/shaft
-      }
+      if (hy >= fz.minY && hy <= fz.maxY && spanX.maxX >= fz.minX && spanX.minX <= fz.maxX) return false
+    }
+    return true
+  })
+  const validX = highwayXList.filter((hx) => {
+    for (const fz of forbiddenZones) {
+      if (hx >= fz.minX && hx <= fz.maxX && spanY.maxY >= fz.minY && spanY.minY <= fz.maxY) return false
     }
     return true
   })
 
-  if (validHighways.length === 0) return null
-  const firstHighway = validHighways[0]!
-  const nearest = (a: number, b: number) =>
-    Math.abs(a - start[1]) + Math.abs(a - end[1]) <= Math.abs(b - start[1]) + Math.abs(b - end[1])
-  const axis = validHighways.reduce((best, cur) => (nearest(cur, best) ? cur : best), firstHighway)
+  if (validY.length === 0 && validX.length === 0) return null
 
-  // Rule 4's trunk run always lies on an axis the caller read off the drawing — that is the property
-  // the previous code broke by inventing one. The vertical legs that step around a core are placed at
-  // x values that come from the drawing too: each endpoint's own x, or a line clear of a core's own
-  // extents (a cable standing just outside a shaft is how it bypasses it). No y coordinate in a Rule 4
-  // route is fabricated; short spurs between neighbouring devices come from Rules 1-3, whose y values
-  // are the devices' own, which are themselves CAD-derived.
-  const legCandidates = [start[0], end[0]]
+  // Rule 4's trunk always lies on an axis the caller read off the drawing — the property the
+  // previous code broke by inventing one. The legs that step around a core sit at the endpoints'
+  // own coordinate or a line clear of a core's extents (a cable just outside a shaft is how it
+  // bypasses it). No coordinate in a Rule 4 route is fabricated.
+  const legX = [start[0], end[0]]
+  const legY = [start[1], end[1]]
   for (const fz of forbiddenZones) {
-    legCandidates.push(fz.minX - 1000 * unitsPerMm, fz.maxX + 1000 * unitsPerMm)
+    legX.push(fz.minX - 1000 * unitsPerMm, fz.maxX + 1000 * unitsPerMm)
+    legY.push(fz.minY - 1000 * unitsPerMm, fz.maxY + 1000 * unitsPerMm)
   }
 
-  const paths: Point2D[][] = [
-    [start, [start[0], axis], [end[0], axis], end],
-    // One extra vertical leg, placed clear of the core, so the run can get around it.
-    ...legCandidates.flatMap((v): Point2D[][] => [
-      [start, [v, start[1]], [v, axis], [end[0], axis], end],
-      [start, [start[0], axis], [v, axis], [v, end[1]], end],
-      [start, [v, start[1]], [v, axis], [v, end[1]], end]
-    ])
-  ]
+  const paths: Point2D[][] = []
+  if (validY.length > 0) {
+    const nearestY = (a: number, b: number) =>
+      Math.abs(a - start[1]) + Math.abs(a - end[1]) <=
+      Math.abs(b - start[1]) + Math.abs(b - end[1])
+    const axis = validY.reduce((best, cur) => (nearestY(cur, best) ? cur : best), validY[0]!)
+    paths.push(
+      [start, [start[0], axis], [end[0], axis], end],
+      ...legX.flatMap((v): Point2D[][] => [
+        [start, [v, start[1]], [v, axis], [end[0], axis], end],
+        [start, [start[0], axis], [v, axis], [v, end[1]], end],
+        [start, [v, start[1]], [v, axis], [v, end[1]], end]
+      ])
+    )
+  }
+  if (validX.length > 0) {
+    const nearestX = (a: number, b: number) =>
+      Math.abs(a - start[0]) + Math.abs(a - end[0]) <=
+      Math.abs(b - start[0]) + Math.abs(b - end[0])
+    const axis = validX.reduce((best, cur) => (nearestX(cur, best) ? cur : best), validX[0]!)
+    paths.push(
+      [start, [axis, start[1]], [axis, end[1]], end],
+      ...legY.flatMap((v): Point2D[][] => [
+        [start, [start[0], v], [axis, v], [axis, end[1]], end],
+        [start, [axis, start[1]], [axis, v], [end[0], v], end],
+        [start, [start[0], v], [axis, v], [end[0], v], end]
+      ])
+    )
+  }
 
   for (const candidate of paths) {
     const simplified: Point2D[] = [candidate[0]!]
     for (let i = 1; i < candidate.length; i++) {
       const prev = simplified[simplified.length - 1]!
       const cur = candidate[i]!
-      // Drop a reversal: two consecutive legs on the same x going opposite ways cancel out.
+      // Drop a reversal: two consecutive legs on the same axis going opposite ways cancel out.
       if (prev[0] === cur[0] && prev[1] === cur[1]) continue
       const before = simplified[simplified.length - 2]
-      if (before && prev[0] === cur[0] && before[0] !== cur[0]) {
-        const up = cur[1] - prev[1]
-        const down = prev[1] - before[1]
-        if (Math.sign(up) === Math.sign(down)) continue
+      if (before) {
+        if (prev[0] === cur[0] && before[0] !== cur[0]) {
+          const up = cur[1] - prev[1]
+          const down = prev[1] - before[1]
+          if (Math.sign(up) === Math.sign(down)) continue
+        } else if (prev[1] === cur[1] && before[1] !== cur[1]) {
+          const right = cur[0] - prev[0]
+          const left = prev[0] - before[0]
+          if (Math.sign(right) === Math.sign(left)) continue
+        }
       }
       simplified.push(cur)
     }
@@ -215,6 +248,7 @@ export function routeStructuralHighway(input: StructuralGridHighwayInput): FireA
   // box (minY-1000 / maxY+1000) draws a cable run beside a shaft that follows no structural beam,
   // and reports a clean route while doing it.
   const beamYHighways = input.beamYHighways ?? []
+  const beamXHighways = input.beamXHighways ?? []
   const violations: string[] = []
 
   if (!input.devices || input.devices.length === 0) {
@@ -261,17 +295,27 @@ export function routeStructuralHighway(input: StructuralGridHighwayInput): FireA
     const pt1: Point2D = [d1.x, d1.y]
     const pt2: Point2D = [d2.x, d2.y]
 
-    const waypoints = routeViaBeamHighway(pt1, pt2, beamYHighways, forbiddenZones, unitsPerMm)
+    const waypoints = routeViaBeamHighway(
+      pt1,
+      pt2,
+      beamYHighways,
+      forbiddenZones,
+      unitsPerMm,
+      beamXHighways
+    )
     if (waypoints === null) {
       // Nothing is emitted for this span. A run along an axis nobody drew used to be committed and
       // still reported PASS, so the only signal that the circuit was unroutable was a wire appearing
       // in the middle of nowhere.
       violations.push(
         `NO_STRUCTURAL_HIGHWAY: no beam axis in ${
-          beamYHighways.length ? `the supplied grid (${beamYHighways.join(', ')})` : 'the design'
+          beamYHighways.length || beamXHighways.length
+            ? `the supplied grid (Y: ${beamYHighways.join(', ') || 'none'}; X: ${
+                beamXHighways.join(', ') || 'none'})`
+            : 'the design'
         } can carry ${d1.id} [${d1.x}, ${d1.y}] -> ${d2.id} [${d2.x}, ${d2.y}] without crossing ` +
-          `a forbidden zone. Supply the real beam/grid Y coordinates from the drawing ` +
-          `(beamYHighways) or split the circuit; nothing was drawn for this span.`
+          `a forbidden zone. Supply the real beam/grid coordinates from the drawing ` +
+          `(beamYHighways / beamXHighways) or split the circuit; nothing was drawn for this span.`
       )
       continue
     }

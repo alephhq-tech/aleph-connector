@@ -73,6 +73,13 @@ export interface FireAlarmLayoutInput {
   elevatorShafts?: Point2D[][]
   maxSmokeSpacingMm?: number
   maxHeatSpacingMm?: number
+  /**
+   * Symbol block scale (same value the planner draws at). The clause wall clearance bounds the
+   * detector's INSERT POINT, but the drawn graphic has a radius: at scale 1 a point detector is a
+   * 400 mm circle, so a centre legal at 300 mm from the wall prints the symbol across the wall.
+   * The placement inset is the larger of the clause clearance and this radius.
+   */
+  symbolScale?: number
 }
 
 export interface FireAlarmLayoutResult {

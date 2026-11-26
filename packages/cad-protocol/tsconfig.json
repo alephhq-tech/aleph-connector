@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "esModuleInterop": true,
     "baseUrl": "../..",
     "paths": {
@@ -17,5 +18,5 @@
     { "path": "../cad-types" },
     { "path": "../device-protocol" }
   ],
-  "include": ["index.ts", "device/**/*.ts", "local-ipc/**/*.ts", "scripts/**/*.ts"]
+  "include": ["index.ts", "device/**/*.ts", "local-ipc/**/*.ts", "scripts/**/*.ts", "schemas/**/*.json"]
 }

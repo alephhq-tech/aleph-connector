@@ -25,12 +25,13 @@ export * from './pccc/sprinkler-layout'
 export * from './pccc/pipe-router'
 export * from './pccc/connectivity'
 export * from './pccc/fire-alarm-types'
-export * from './pccc/fire-alarm-layout'
+// fire-alarm-layout / fire-alarm-planner are NOT re-exported: the pccc_fire_alarm_overlay MCP tool
+// is the only entry point, so a client cannot import the planner and skip the CAD-geometry gates.
+// The tool reaches them by deep import; their result types live in ./pccc/fire-alarm-types.
 export * from './pccc/fire-alarm-router'
 export * from './pccc/structural-highway-router'
 export * from './pccc/block-library'
 export * from './pccc/default-symbol-geometry'
-export * from './pccc/fire-alarm-planner'
 
 export * from './calculations/hydraulic-engine'
 export * from './verification/runner'

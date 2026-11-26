@@ -1,26 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
-import { open } from "@tauri-apps/plugin-shell";
-import {
-  approveOAuth,
-  asEpochMs,
-  googleStartUrl,
-  pairDevice,
-  signIn,
-  signUp,
-  type AuthSession,
-  type DetectedAgent,
-} from "./api";
+import { type DetectedAgent } from "./api";
 
-type Nav = "account" | "autocad" | "agents" | "logs";
-type BusyAction = "install" | "uninstall" | "check" | "update" | "pair" | "mcp" | null;
+type Nav = "runtime" | "autocad" | "agents" | "logs";
+type BusyAction =
+  | "install"
+  | "uninstall"
+  | "check"
+  | "update"
+  | "mcp"
+  | "start"
+  | "stop"
+  | "restart"
+  | null;
 type NoticeKind = "ok" | "err" | "info";
 
 interface Notice {
   kind: NoticeKind;
   title: string;
   detail?: string;
+}
+
+interface RuntimeStatus {
+  running: boolean;
+  port: number;
+  mcpUrl: string;
+  deviceWssUrl: string;
+  healthy: boolean;
 }
 
 interface IntegrationStatus {
@@ -43,27 +49,11 @@ interface UpdateCheck {
   message: string;
 }
 
-function deriveDeviceWss(mcpUrl: string): string {
-  try {
-    const u = new URL(mcpUrl);
-    u.protocol = u.protocol === "http:" ? "ws:" : "wss:";
-    u.pathname = "/device";
-    u.search = "";
-    return u.toString().replace(/\/$/, "");
-  } catch {
-    return "ws://127.0.0.1:8080/device";
-  }
-}
-
 export default function App() {
-  const [gatewayUrl, setGatewayUrl] = useState("http://127.0.0.1:8090");
-  const [mcpUrl, setMcpUrl] = useState("http://127.0.0.1:8080/mcp");
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showEmail, setShowEmail] = useState(false);
-  const [nav, setNav] = useState<Nav>("agents");
+  const [nav, setNav] = useState<Nav>("runtime");
+  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [agents, setAgents] = useState<DetectedAgent[]>([]);
+  const [packageRoot, setPackageRoot] = useState("");
   const [log, setLog] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -73,17 +63,8 @@ export default function App() {
   const [integration, setIntegration] = useState<IntegrationStatus | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateCheck | null>(null);
   const [confirmUpdate, setConfirmUpdate] = useState(false);
-  const gatewayUrlRef = useRef(gatewayUrl);
-  const sessionRef = useRef(session);
-  const handledAuthTokens = useRef(new Set<string>());
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    gatewayUrlRef.current = gatewayUrl;
-  }, [gatewayUrl]);
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
   useEffect(() => {
     return () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -123,6 +104,12 @@ export default function App() {
     return st;
   }, []);
 
+  const refreshRuntime = useCallback(async () => {
+    const st = await invoke<RuntimeStatus>("runtime_status");
+    setRuntime(st);
+    return st;
+  }, []);
+
   const refreshUpdates = useCallback(async () => {
     try {
       const info = await invoke<UpdateCheck>("check_updates");
@@ -142,133 +129,19 @@ export default function App() {
   }, [integration?.bridgeVersion, integration?.connectorVersion]);
 
   useEffect(() => {
+    if (nav === "runtime") void refreshRuntime();
     if (nav !== "autocad") return;
     void refreshIntegration();
     void refreshUpdates();
-  }, [nav, refreshIntegration, refreshUpdates]);
-
-  const completePair = useCallback(
-    async (sess: AuthSession, gw: string) => {
-      const deviceId = await invoke<string>("ensure_device_id");
-      const paired = await pairDevice(gw, sess.sessionToken, deviceId);
-      const expiresAt = asEpochMs(paired.expiresAt);
-      await invoke("write_identity", {
-        deviceId: paired.deviceId,
-        token: paired.token,
-        expiresAt,
-      });
-      appendLog(`Paired ${paired.deviceId}`);
-      return {
-        deviceId: paired.deviceId,
-        token: paired.token,
-        expiresAt,
-      };
-    },
-    [appendLog],
-  );
-
-  const applySession = useCallback(
-    async (sess: AuthSession, gw = gatewayUrlRef.current) => {
-      await invoke("save_session", { session: sess });
-      setSession(sess);
-      setError("");
-      setNav("agents");
-      try {
-        await completePair(sess, gw);
-        setStatus("Signed in and device paired.");
-      } catch (e) {
-        setError(String(e));
-        setStatus("Signed in — device pairing needs retry.");
-      }
-      await refreshAgents();
-    },
-    [completePair, refreshAgents],
-  );
-
-  const handleDeepLink = useCallback(
-    async (url: string) => {
-      appendLog(`Deep link: ${url}`);
-      const gw = gatewayUrlRef.current;
-      try {
-        const parsed = new URL(url);
-        if (url.includes("auth/callback")) {
-          const token = parsed.searchParams.get("session_token");
-          if (!token) throw new Error("Missing session_token");
-          if (handledAuthTokens.current.has(token)) return;
-          handledAuthTokens.current.add(token);
-          setStatus("Finishing Google sign-in…");
-          const me = await fetch(`${gw}/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const body = (await me.json()) as {
-            user: { id: string; email: string };
-            workspaceId: string;
-            workspaceName: string;
-            expiresAt: number | string;
-            error?: string;
-          };
-          if (!me.ok) throw new Error(body.error || "Session invalid");
-          await applySession(
-            {
-              sessionToken: token,
-              expiresAt: asEpochMs(body.expiresAt),
-              user: body.user,
-              workspaceId: body.workspaceId,
-              workspaceName: body.workspaceName,
-            },
-            gw,
-          );
-          return;
-        }
-        if (url.includes("consent") || url.includes("oauth")) {
-          const returnTo = parsed.searchParams.get("return_to");
-          const sess = sessionRef.current;
-          if (!returnTo || !sess) {
-            setError("Sign in first, then approve MCP again.");
-            return;
-          }
-          const authUrl = new URL(returnTo);
-          const params: Record<string, string> = {
-            client_id: authUrl.searchParams.get("client_id") || "",
-            redirect_uri: authUrl.searchParams.get("redirect_uri") || "",
-            code_challenge: authUrl.searchParams.get("code_challenge") || "",
-          };
-          for (const key of ["scope", "resource", "state"]) {
-            const v = authUrl.searchParams.get(key);
-            if (v) params[key] = v;
-          }
-          const approved = await approveOAuth(gw, sess.sessionToken, params);
-          if (approved.redirect_to) await open(approved.redirect_to);
-          setStatus("MCP access approved.");
-        }
-      } catch (e) {
-        setError(String(e));
-      }
-    },
-    [appendLog, applySession],
-  );
+  }, [nav, refreshIntegration, refreshRuntime, refreshUpdates]);
 
   useEffect(() => {
     void (async () => {
       try {
-        const [gw, mcp] = await invoke<[string, string]>("default_urls");
-        setGatewayUrl(gw);
-        gatewayUrlRef.current = gw;
-        setMcpUrl(mcp);
         const root = await invoke<string>("package_root");
+        setPackageRoot(root);
         appendLog(`Package root: ${root}`);
-        const existing = await invoke<AuthSession | null>("load_session");
-        if (existing) {
-          setSession(existing);
-          setStatus(`Signed in as ${existing.user.email}`);
-          try {
-            await completePair(existing, gw);
-            setStatus(`Signed in as ${existing.user.email} · device paired`);
-          } catch (pairErr) {
-            setError(String(pairErr));
-            setStatus(`Signed in as ${existing.user.email} — device pairing needs retry`);
-          }
-        }
+        await refreshRuntime();
         await refreshAgents();
         await refreshIntegration();
         await refreshUpdates();
@@ -276,74 +149,76 @@ export default function App() {
         setError(String(e));
       }
     })();
-  }, [appendLog, completePair, refreshAgents, refreshIntegration, refreshUpdates]);
+  }, [appendLog, refreshAgents, refreshIntegration, refreshRuntime, refreshUpdates]);
 
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const current = await getCurrent();
-        if (!cancelled && current?.length) {
-          for (const url of current) await handleDeepLink(url);
-        }
-        unlisten = await onOpenUrl((urls) => {
-          for (const url of urls) void handleDeepLink(url);
-        });
-      } catch (e) {
-        appendLog(`Deep-link listener: ${String(e)}`);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [appendLog, handleDeepLink]);
-
-  async function onAuth(mode: "signin" | "signup") {
-    setBusy(true);
-    setError("");
+  async function onStartRuntime() {
+    beginBusy("start");
     try {
-      const sess =
-        mode === "signup"
-          ? await signUp(gatewayUrl, email, password)
-          : await signIn(gatewayUrl, email, password);
-      await applySession(sess);
-      setPassword("");
+      const st = await invoke<RuntimeStatus>("start_runtime", { port: null });
+      setRuntime(st);
+      appendLog(`Runtime started on port ${st.port}`);
+      if (st.healthy) {
+        setStatus(`Local MCP running on port ${st.port}.`);
+        showNotice("ok", "Runtime started", st.mcpUrl);
+      } else {
+        setStatus("Runtime started but /health is not answering yet.");
+        showNotice("info", "Runtime starting", "Health check pending.");
+      }
     } catch (e) {
-      setError(String(e));
+      const msg = String(e);
+      setError(msg);
+      showNotice("err", "Runtime failed to start", msg);
     } finally {
-      setBusy(false);
+      endBusy();
     }
   }
 
-  async function onGoogle() {
-    setError("");
-    await open(googleStartUrl(gatewayUrl));
-    setStatus("Complete Google sign-in in the browser…");
+  async function onStopRuntime() {
+    beginBusy("stop");
+    try {
+      const st = await invoke<RuntimeStatus>("stop_runtime");
+      setRuntime(st);
+      appendLog("Runtime stopped");
+      setStatus("Local MCP stopped.");
+      showNotice("info", "Runtime stopped");
+    } catch (e) {
+      const msg = String(e);
+      setError(msg);
+      showNotice("err", "Stop failed", msg);
+    } finally {
+      endBusy();
+    }
   }
 
-  async function onSignOut() {
-    await invoke("clear_session");
-    setSession(null);
-    setStatus("Signed out.");
+  async function onRestartRuntime() {
+    beginBusy("restart");
+    try {
+      await invoke<RuntimeStatus>("stop_runtime");
+      const st = await invoke<RuntimeStatus>("start_runtime", { port: null });
+      setRuntime(st);
+      appendLog(`Runtime restarted on port ${st.port}`);
+      setStatus(`Local MCP running on port ${st.port}.`);
+      showNotice("ok", "Runtime restarted", st.mcpUrl);
+    } catch (e) {
+      const msg = String(e);
+      setError(msg);
+      showNotice("err", "Restart failed", msg);
+    } finally {
+      endBusy();
+    }
   }
 
   async function onInstallAutocad() {
-    if (!session) {
-      showNotice("err", "Sign in required", "Sign in before installing Bridge.");
-      return;
-    }
     beginBusy("install");
-    showNotice("info", "Installing Bridge + plugin…", "Pairing device, then running install.ps1.");
+    showNotice("info", "Installing Bridge + plugin…", "Pointing the Bridge at the local runtime.");
     try {
-      // identity.json may be missing after a local wipe — pair again before install.
-      const paired = await completePair(session, gatewayUrlRef.current);
+      const deviceWssUrl = runtime?.deviceWssUrl ?? "ws://127.0.0.1:8080/device";
+      // The runtime owns identity.json; install.ps1 reads the credential from disk.
       const [ok, out] = await invoke<[boolean, string]>("install_autocad", {
-        deviceGatewayUrl: deriveDeviceWss(mcpUrl),
-        deviceId: paired.deviceId,
-        deviceToken: paired.token,
-        tokenExpiresAt: paired.expiresAt,
+        deviceGatewayUrl: deviceWssUrl,
+        deviceId: null,
+        deviceToken: null,
+        tokenExpiresAt: null,
       });
       appendLog(out || "(no output)");
       await refreshIntegration();
@@ -428,8 +303,9 @@ export default function App() {
     beginBusy("update");
     showNotice("info", "Downloading and installing update…", "Verifying package hash, then running install.ps1.");
     try {
+      const deviceWssUrl = runtime?.deviceWssUrl ?? "ws://127.0.0.1:8080/device";
       const [ok, out] = await invoke<[boolean, string]>("apply_update", {
-        deviceGatewayUrl: deriveDeviceWss(mcpUrl),
+        deviceGatewayUrl: deviceWssUrl,
       });
       appendLog(out || "(no output)");
       await refreshIntegration();
@@ -461,11 +337,14 @@ export default function App() {
         showNotice("info", "Nothing to install", msg);
         return;
       }
+      const mcpUrl = runtime?.mcpUrl ?? "http://127.0.0.1:8080/mcp";
+      const stdioExe = packageRoot ? `${packageRoot}\\aleph-mcp-stdio.exe` : null;
       for (const agent of selected) {
         const path = await invoke<string>("write_mcp_config", {
           kind: agent.kind,
           configPath: agent.configPath,
           mcpUrl,
+          stdioExe,
         });
         appendLog(`MCP → ${agent.displayName}: ${path}`);
       }
@@ -478,7 +357,7 @@ export default function App() {
         appendLog(`Skills → ${r.kind}: ${r.paths.length} path(s)`);
         for (const p of r.paths.slice(0, 6)) appendLog(`  ${p}`);
       }
-      const msg = `Installed plugin (MCP + skills) for ${selected.length} agent(s). OAuth opens Aleph Connector to approve.`;
+      const msg = `Installed plugin (MCP + skills) for ${selected.length} agent(s).`;
       setStatus(msg);
       showNotice("ok", "Plugin installed", msg);
     } catch (e) {
@@ -501,68 +380,15 @@ export default function App() {
             ? "Updating…"
             : busyAction === "mcp"
               ? "Installing plugin…"
-              : busy
-                ? "Working…"
-                : null;
-
-  if (!session) {
-    return (
-      <div className="signed-out">
-        <div className="signed-out-panel">
-          <div className="brand">
-            Aleph <span>Connector</span>
-          </div>
-          <h1>Connect your agents to AutoCAD</h1>
-          <p className="lead">
-            Sign in once. Install the Bridge and plugin, then wire Cursor, Claude, or VS Code to
-            Aleph MCP.
-          </p>
-          <button className="btn btn-primary btn-google" onClick={() => void onGoogle()} disabled={busy}>
-            Continue with Google
-          </button>
-          <div className="divider">or email</div>
-          {!showEmail ? (
-            <button className="linkish" onClick={() => setShowEmail(true)}>
-              Use email and password
-            </button>
-          ) : (
-            <>
-              <div className="field">
-                <label htmlFor="email">Email</label>
-                <input
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </div>
-              <div className="row">
-                <button className="btn btn-primary" disabled={busy} onClick={() => void onAuth("signin")}>
-                  Sign in
-                </button>
-                <button className="btn" disabled={busy} onClick={() => void onAuth("signup")}>
-                  Sign up
-                </button>
-              </div>
-            </>
-          )}
-          {error ? <p className="error">{error}</p> : null}
-          {status ? <p className="muted">{status}</p> : null}
-          <p className="muted">Gateway {gatewayUrl}</p>
-        </div>
-      </div>
-    );
-  }
+              : busyAction === "start"
+                ? "Starting runtime…"
+                : busyAction === "stop"
+                  ? "Stopping runtime…"
+                  : busyAction === "restart"
+                    ? "Restarting runtime…"
+                    : busy
+                      ? "Working…"
+                      : null;
 
   return (
     <div className="app-shell">
@@ -573,7 +399,7 @@ export default function App() {
         <nav className="nav">
           {(
             [
-              ["account", "Account"],
+              ["runtime", "Runtime"],
               ["autocad", "AutoCAD"],
               ["agents", "Agents"],
               ["logs", "Logs"],
@@ -584,13 +410,10 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="account-chip">
-          {session.user.email}
-          <div>
-            <button className="linkish" onClick={() => void onSignOut()}>
-              Sign out
-            </button>
-          </div>
+        <div className="runtime-chip">
+          <span className={`badge ${runtime?.running && runtime.healthy ? "ok" : ""}`}>
+            {runtime?.running && runtime.healthy ? "MCP running" : "MCP stopped"}
+          </span>
         </div>
       </aside>
       <main className="main">
@@ -605,20 +428,58 @@ export default function App() {
             </button>
           </div>
         ) : null}
-        {nav === "account" && (
+        {nav === "runtime" && (
           <>
-            <h2 className="section-title">Account</h2>
+            <h2 className="section-title">Local runtime</h2>
             <p className="section-lead">
-              Signed in to {session.workspaceName}. Device credentials are stored under LocalAppData
-              CadAI.
+              One local MCP server on this machine — no account, no cloud. Your agents connect to
+              the MCP URL below; the Bridge dials the device URL.
             </p>
-            <div className="field">
-              <label>Gateway URL</label>
-              <input value={gatewayUrl} onChange={(e) => setGatewayUrl(e.target.value)} />
+            <div className="status-panel">
+              <div className="status-row">
+                <span className="status-label">Local MCP</span>
+                <span className={`badge ${runtime?.running && runtime.healthy ? "ok" : ""}`}>
+                  {runtime?.running && runtime.healthy
+                    ? "Running"
+                    : runtime?.running
+                      ? "Starting"
+                      : "Stopped"}
+                </span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">Port</span>
+                <span className="status-value">{runtime?.port ?? "—"}</span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">Health</span>
+                <span className="status-value">
+                  {runtime?.healthy ? "/health ok" : runtime?.running ? "/health pending" : "not running"}
+                </span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">MCP URL</span>
+                <span className="status-value">{runtime?.mcpUrl ?? "—"}</span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">Bridge WSS</span>
+                <span className="status-value">{runtime?.deviceWssUrl ?? "—"}</span>
+              </div>
             </div>
-            <div className="field" style={{ marginTop: 12 }}>
-              <label>MCP URL</label>
-              <input value={mcpUrl} onChange={(e) => setMcpUrl(e.target.value)} />
+            <div className="actions">
+              {runtime?.running ? (
+                <>
+                  <button className="btn" disabled={busy} onClick={() => void onRestartRuntime()}>
+                    {busyAction === "restart" ? "Restarting…" : "Restart"}
+                  </button>
+                  <button className="btn btn-danger" disabled={busy} onClick={() => void onStopRuntime()}>
+                    {busyAction === "stop" ? "Stopping…" : "Stop"}
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn-primary" disabled={busy} onClick={() => void onStartRuntime()}>
+                  {busyAction === "start" ? "Starting…" : "Start runtime"}
+                </button>
+              )}
             </div>
           </>
         )}
@@ -626,8 +487,8 @@ export default function App() {
           <>
             <h2 className="section-title">AutoCAD</h2>
             <p className="section-lead">
-              Install the headless Bridge and CadAI plugin. Releases publish to the Aleph
-              Connector update channel — Connector detects them and can update in place.
+              Install the headless Bridge and CadAI plugin. The Bridge dials the local runtime over
+              loopback; releases publish to the Connector update channel.
             </p>
 
             <div className="status-panel">
@@ -730,8 +591,8 @@ export default function App() {
           <>
             <h2 className="section-title">Agents</h2>
             <p className="section-lead">
-              Select clients on this machine. Install Plugin writes MCP config and deploys drafting +
-              PCCC skills (AGENTS.md). OAuth completes inside Connector.
+              Select clients on this machine. Install Plugin writes MCP config pointing at the local
+              runtime and deploys drafting + PCCC skills (AGENTS.md).
             </p>
             <div className="agent-list">
               {agents.map((agent, idx) => (
@@ -768,40 +629,13 @@ export default function App() {
         {nav === "logs" && (
           <>
             <h2 className="section-title">Logs</h2>
-            <p className="section-lead">{status || "Activity from installs and pairing."}</p>
+            <p className="section-lead">{status || "Activity from the runtime, installs, and plugin setup."}</p>
             <div className="log">{log || "No log output yet."}</div>
           </>
         )}
         {error ? (
           <p className="error" style={{ marginTop: 16 }}>
             {error}
-            {/pair|device|grant/i.test(error) ? (
-              <>
-                {" "}
-                <button
-                  className="linkish"
-                  disabled={busy}
-                  onClick={() => {
-                    if (!session) return;
-                    beginBusy("pair");
-                    void completePair(session, gatewayUrlRef.current)
-                      .then(() => {
-                        setError("");
-                        setStatus("Device paired.");
-                        showNotice("ok", "Device paired");
-                      })
-                      .catch((e) => {
-                        const msg = String(e);
-                        setError(msg);
-                        showNotice("err", "Pair failed", msg);
-                      })
-                      .finally(() => endBusy());
-                  }}
-                >
-                  Retry pair
-                </button>
-              </>
-            ) : null}
           </p>
         ) : null}
         {status && nav !== "logs" && !notice ? (

@@ -39,3 +39,5 @@ windows/tmp-keys/
 .idea/
 .DS_Store
 Thumbs.db
+# compiled runtime sidecar + staged skills (bun run build:runtime)
+windows/connector-app/src-tauri/binaries/

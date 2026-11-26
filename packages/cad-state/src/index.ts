@@ -1,5 +1,7 @@
 import { db, type CadSymbolCatalogItem } from '@aleph-connector/data'
 
+export * from './local.js'
+
 export interface CadSnapshotAccess {
   snapshot: { id: string } | null
   mayUseForCurrentFacts: boolean

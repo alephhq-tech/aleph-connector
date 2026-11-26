@@ -9,18 +9,6 @@
         "typescript": "^5.9.3",
       },
     },
-    "apps/gateway": {
-      "name": "@aleph-connector/gateway",
-      "version": "0.1.0",
-      "dependencies": {
-        "@aleph-connector/identity": "workspace:*",
-        "postgres": "^3.4.5",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "typescript": "^5.6.0",
-      },
-    },
     "apps/mcp-server": {
       "name": "@aleph-connector/mcp-server",
       "version": "0.1.0",
@@ -38,13 +26,16 @@
         "@aleph-connector/observability": "workspace:*",
         "@aleph-connector/operation-protocol": "workspace:*",
         "@modelcontextprotocol/server": "^2.0.0",
-        "postgres": "^3.4.5",
         "zod": "^4.0.0",
       },
       "devDependencies": {
         "@modelcontextprotocol/client": "^2.0.0",
         "typescript": "^5.6.0",
       },
+    },
+    "packages/agent-pack": {
+      "name": "@aleph-connector/agent-pack",
+      "version": "0.1.0",
     },
     "packages/cad-core": {
       "name": "@aleph-connector/cad-core",
@@ -134,6 +125,8 @@
     },
   },
   "packages": {
+    "@aleph-connector/agent-pack": ["@aleph-connector/agent-pack@workspace:packages/agent-pack"],
+
     "@aleph-connector/cad-core": ["@aleph-connector/cad-core@workspace:packages/cad-core"],
 
     "@aleph-connector/cad-protocol": ["@aleph-connector/cad-protocol@workspace:packages/cad-protocol"],
@@ -155,8 +148,6 @@
     "@aleph-connector/device-protocol": ["@aleph-connector/device-protocol@workspace:packages/device-protocol"],
 
     "@aleph-connector/engineering": ["@aleph-connector/engineering@workspace:packages/engineering"],
-
-    "@aleph-connector/gateway": ["@aleph-connector/gateway@workspace:apps/gateway"],
 
     "@aleph-connector/identity": ["@aleph-connector/identity@workspace:packages/identity"],
 
@@ -202,8 +193,6 @@
 
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
 
-    "postgres": ["postgres@3.4.9", "", {}, "sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw=="],
-
     "require-from-string": ["require-from-string@2.0.2", "", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
     "shebang-command": ["shebang-command@2.0.0", "", { "dependencies": { "shebang-regex": "^3.0.0" } }, "sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA=="],
@@ -217,9 +206,5 @@
     "which": ["which@2.0.2", "", { "dependencies": { "isexe": "^2.0.0" }, "bin": { "node-which": "./bin/node-which" } }, "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA=="],
 
     "zod": ["zod@4.6.7", "", {}, "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="],
-
-    "@aleph-connector/gateway/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
-
-    "@aleph-connector/gateway/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
   }
 }

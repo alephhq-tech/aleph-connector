@@ -15,6 +15,7 @@ export interface HighwayFireAlarmPlannerInput extends FireAlarmLayoutInput {
   layerText?: string
   symbolScale?: number
   beamYHighways?: number[]
+  beamXHighways?: number[]
   forbiddenZones?: Array<{ minX: number; minY: number; maxX: number; maxY: number }>
   /**
    * Device type -> the exact block definition name available in the target drawing, resolved by the
@@ -70,6 +71,7 @@ export function planHighwayFireAlarm(input: HighwayFireAlarmPlannerInput): FireA
   // at `minY-1000` is a polyline vertex that follows no structural element, yet it used to be drawn
   // and reported as a clean route. Without a real axis a long span is refused (NO_STRUCTURAL_HIGHWAY).
   const beamYHighways = input.beamYHighways ?? []
+  const beamXHighways = input.beamXHighways ?? []
 
   // Generate compliant sensor layout with all elevator shafts registered for exclusion
   const layout = generateFireAlarmLayout({
@@ -90,6 +92,7 @@ export function planHighwayFireAlarm(input: HighwayFireAlarmPlannerInput): FireA
       devices: zoneDevices,
       startDeviceId: zoneDevices.find((d) => d.type === 'JUNCTION_BOX')?.id,
       beamYHighways,
+      beamXHighways,
       forbiddenZones,
       layerWiring,
       insUnits: input.insUnits

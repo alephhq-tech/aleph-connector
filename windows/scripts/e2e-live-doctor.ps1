@@ -115,7 +115,7 @@ if ($gatewayUrl -and $gatewayUrl -notmatch '127\.0\.0\.1|localhost') {
 }
 $identityPath = Join-Path $env:LOCALAPPDATA 'CadAI\bridge\identity.json'
 Step 'connector identity.json exists' (Test-Path $identityPath) $identityPath `
-  'bun run apps\mcp-server\scripts\mint-dev-credential.ts'
+  'the local runtime writes it at startup: bun run apps\mcp-server\src\index.ts'
 
 Write-Host ''
 Write-Host '--- process state ---'
@@ -140,23 +140,21 @@ if (Test-Path $healthPath) {
   }
   if ($ExpectOnline -and -not ($health.pluginLoaded -and $health.ipcConnected -and $health.bridgeOnline)) {
     Step 'stack online (health.json)' $false "pluginLoaded=$($health.pluginLoaded) ipc=$($health.ipcConnected) online=$($health.bridgeOnline)" `
-      'start the server with ALEPH_DEV_IDENTITY=1, mint a credential, then restart the Bridge task'
+      'start the local runtime (bun run apps\mcp-server\src\index.ts), then restart the Bridge task'
   }
 } else {
   $notes += 'health.json not readable (the Bridge has never started?).'
 }
 
 Write-Host ''
-Write-Host '--- dev identity inputs ---'
-$envFile = Join-Path $repoRoot 'apps\mcp-server\.env'
-Step 'apps\mcp-server\.env present' (Test-Path $envFile) $envFile 'copy apps\mcp-server\.env.example'
-if (Test-Path $envFile) {
-  $hasJwt = @(Select-String -Path $envFile -Pattern '^JWT_SECRET=\S').Count -gt 0
-  Step 'JWT_SECRET set (value not printed)' $hasJwt '' "add JWT_SECRET=... to $envFile (16+ chars)"
+Write-Host '--- local runtime entrypoint ---'
+$runtimeEntry = Join-Path $repoRoot 'apps\mcp-server\src\index.ts'
+Step 'local runtime entrypoint exists' (Test-Path $runtimeEntry) $runtimeEntry `
+  'the repo checkout is missing apps\mcp-server\src\index.ts'
+$sidecar = Join-Path $repoRoot 'apps\mcp-server\dist\aleph-mcp.exe'
+if (Test-Path $sidecar) {
+  $notes += "compiled sidecar present: $sidecar (the desktop app manages this one)."
 }
-$devFlag = $env:ALEPH_DEV_IDENTITY
-Step 'ALEPH_DEV_IDENTITY in the process env' ($devFlag -eq '1') $(if ($devFlag) { $devFlag } else { 'unset' }) `
-  'bun run e2e:live sets it; for a manual server start set ALEPH_DEV_IDENTITY=1 first'
 
 Write-Host ''
 foreach ($n in $notes) { Write-Host "  note: $n" -ForegroundColor DarkGray }

@@ -45,6 +45,12 @@ function latticePitchMm(criteria: SensorCriteria, callerCapMm?: number): number 
   return Math.min(...candidates)
 }
 
+// The default point-detector symbol is a 400 mm-radius circle (default-symbol-geometry.ts);
+// MCP/combination graphics are the same half-extent. The clause wall clearance bounds the insert
+// point, but the drawn graphic reaches this far, so a centre legal at the clause minimum still
+// prints the symbol across the wall. Placement keeps the larger of the two from the boundary.
+const DEFAULT_SYMBOL_RADIUS_MM = 400
+
 export function classifyRoomSensor(usage: FireAlarmRoomUsage): SensorCriteria {
   switch (usage) {
     case 'garage':
@@ -226,7 +232,21 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
         return true
       }
 
-      const placeable = (pt: Point2D): boolean => {
+      // Keep the drawn symbol inside the room: a point detector is a 400 mm-radius circle, so a
+      // centre legal at the clause minimum (300 mm) still prints the graphic across the wall (the
+      // SUNLAND overhang). The inset is the larger of the clause floor and the symbol radius — but
+      // ONLY when the room can actually hold the symbol. A space narrower than the symbol's diameter
+      // cannot fit it anywhere, so there the clause floor stays: leaving a corridor unprotected to
+      // avoid a 100 mm overhang is the worse failure. min(width,height)/2 is a conservative proxy for
+      // the largest inscribed circle; when it is under the radius the room is too tight and we relax.
+      const symbolRadius = DEFAULT_SYMBOL_RADIUS_MM * (input.symbolScale ?? 1) * unitsPerMm
+      const roomHoldsSymbol = Math.min(width, height) / 2 >= symbolRadius
+      const placementInset = roomHoldsSymbol
+        ? Math.max(criteria.wallClearanceMinMm * unitsPerMm, symbolRadius)
+        : criteria.wallClearanceMinMm * unitsPerMm
+
+      const clauseFloor = criteria.wallClearanceMinMm * unitsPerMm
+      const placeable = (pt: Point2D, inset = placementInset): boolean => {
         if (!protectedCeiling(pt)) return false
         if (input.elevatorShafts) {
           for (const shaft of input.elevatorShafts) {
@@ -237,8 +257,7 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
         // wallClearanceMaxMm (which the pitch already guarantees) and no closer than
         // wallClearanceMinMm. A detector crowded onto a wall or perched on a shaft's edge reads as
         // placed but reports poorly.
-        if (distToPolygonBoundary(pt, room.boundary) < criteria.wallClearanceMinMm * unitsPerMm)
-          return false
+        if (distToPolygonBoundary(pt, room.boundary) < inset) return false
         return true
       }
 
@@ -311,8 +330,8 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
       // Repair greedily. Each added detector must stand on this room's protected ceiling, outside
       // every shaft's clearance band, and within safeReach of the ceiling it is claimed to cover — a
       // repair placed on the far side of a void repairs nothing.
-      while (holes.length > 0) {
-        const seed = holes.shift()!
+      // Search for a repair spot at a given boundary inset, deepest-into-the-room first.
+      const findRepair = (seed: Point2D, inset: number): { spot: Point2D; covers: number } | null => {
         let best: { spot: Point2D; covers: number } | null = null
         // Prefer the direction going deeper into the room (away from the wall the hole sits under).
         const baseAngle = Math.atan2(
@@ -329,7 +348,7 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
               seed[0] + radius * Math.cos(angle),
               seed[1] + radius * Math.sin(angle)
             ]
-            if (!placeable(spot)) continue
+            if (!placeable(spot, inset)) continue
             if (
               placedInRoom.some((d) => Math.hypot(d.x - spot[0], d.y - spot[1]) < 1000 * unitsPerMm)
             )
@@ -342,6 +361,16 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
             if (!best || covers > best.covers) best = { spot, covers }
           }
         }
+        return best
+      }
+
+      while (holes.length > 0) {
+        const seed = holes.shift()!
+        // Keep the drawn symbol inside the room first; only if no inset-legal spot can cover the
+        // hole (a narrow arm of an L-shaped room cannot hold the symbol) fall back to the clause
+        // floor. A small overhang beats an uncovered strip of ceiling — the clause is about coverage.
+        let best = findRepair(seed, placementInset)
+        if (!best && placementInset > clauseFloor) best = findRepair(seed, clauseFloor)
         if (!best) {
           violations.push(
             `UNCOVERED_CEILING: ${room.name || room.id} has protected ceiling at ` +

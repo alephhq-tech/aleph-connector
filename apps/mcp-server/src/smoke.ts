@@ -177,8 +177,10 @@ async function main(): Promise<void> {
   )
 
   const instructions = client.getInstructions() ?? ''
-  assert.match(instructions, /Angles are radians/)
+  // Instructions must point to the skill, not embed its rules (single source = SKILL.md).
   assert.match(instructions, /autocad-drafting-guide/)
+  assert.match(instructions, /single source of the drafting workflow/)
+  assert.doesNotMatch(instructions, /Angles are radians/, 'instructions must not restate SKILL.md rules')
   console.log('initialize.instructions ->', `${instructions.length} chars`)
 
   const prompts = await client.listPrompts()

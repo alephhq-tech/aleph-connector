@@ -10,7 +10,9 @@
   "scripts": {
     "check": "bun run typecheck",
     "typecheck": "tsc -b --pretty false",
-    "test": "bun test"
+    "test": "bun test",
+    "build:runtime": "bun run apps/mcp-server/scripts/build-runtime.ts",
+    "build:stdio": "bun build --compile apps/mcp-server/src/stdio-proxy.ts --outfile windows/connector-app/src-tauri/binaries/aleph-mcp-stdio.exe"
   },
   "devDependencies": {
     "@types/bun": "latest",
