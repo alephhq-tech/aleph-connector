@@ -30,8 +30,9 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
                 fs::create_dir_all(parent)
                     .map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
             }
-            fs::copy(entry.path(), &dest)
-                .map_err(|e| format!("copy {} → {}: {e}", entry.path().display(), dest.display()))?;
+            fs::copy(entry.path(), &dest).map_err(|e| {
+                format!("copy {} → {}: {e}", entry.path().display(), dest.display())
+            })?;
         }
     }
     Ok(())
@@ -84,13 +85,12 @@ pub fn resolve_pack_root() -> Result<PathBuf, String> {
                 None => break,
             };
             for candidate in [
+                d.join("binaries").join("agent-pack"),
                 d.join("agent-pack"),
                 d.join("packages").join("agent-pack"),
                 d.to_path_buf(),
             ] {
-                if candidate.join("plugin.json").is_file()
-                    && candidate.join("skills").is_dir()
-                {
+                if candidate.join("plugin.json").is_file() && candidate.join("skills").is_dir() {
                     return Ok(candidate);
                 }
             }
@@ -99,7 +99,11 @@ pub fn resolve_pack_root() -> Result<PathBuf, String> {
             if packaged.join("plugin.json").is_file() {
                 return Ok(packaged);
             }
-            let packaged_win = d.join("windows").join("dist").join("client").join("agent-pack");
+            let packaged_win = d
+                .join("windows")
+                .join("dist")
+                .join("client")
+                .join("agent-pack");
             if packaged_win.join("plugin.json").is_file() {
                 return Ok(packaged_win);
             }
@@ -143,7 +147,10 @@ fn plugin_json(pack: &Path) -> Result<String, String> {
     fs::read_to_string(&p).map_err(|e| format!("read {}: {e}", p.display()))
 }
 
-fn copy_skills_into(dest_skills_root: &Path, skill_dirs: &[PathBuf]) -> Result<Vec<String>, String> {
+fn copy_skills_into(
+    dest_skills_root: &Path,
+    skill_dirs: &[PathBuf],
+) -> Result<Vec<String>, String> {
     let mut written = Vec::new();
     fs::create_dir_all(dest_skills_root)
         .map_err(|e| format!("mkdir {}: {e}", dest_skills_root.display()))?;
@@ -172,7 +179,10 @@ pub fn install_for_kind(kind: &str, pack: &Path) -> Result<PackInstallResult, St
         "cursor" => {
             let skills_root = home.join(".cursor").join("skills");
             paths.extend(copy_skills_into(&skills_root, &skill_dirs)?);
-            let rule = home.join(".cursor").join("rules").join("aleph-connector.mdc");
+            let rule = home
+                .join(".cursor")
+                .join("rules")
+                .join("aleph-connector.mdc");
             let body = format!(
                 "---\ndescription: Aleph Connector AutoCAD + PCCC\nglobs:\nalwaysApply: true\n---\n\n{agents}\n"
             );

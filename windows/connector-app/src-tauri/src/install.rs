@@ -6,10 +6,27 @@ fn has_install_script(dir: &Path) -> bool {
     dir.join("install.ps1").is_file()
 }
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn finds_packaged_client_inside_resource_directory() {
+        let root = std::env::temp_dir().join(format!("aleph-client-path-{}", uuid::Uuid::new_v4()));
+        let client = root.join("binaries").join("client");
+        std::fs::create_dir_all(&client).unwrap();
+        std::fs::write(client.join("install.ps1"), "test").unwrap();
+        assert_eq!(super::walk_for_package(&root), Some(client));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
 fn walk_for_package(start: &Path) -> Option<PathBuf> {
     let mut dir = Some(start);
     for _ in 0..14 {
         let d = dir?;
+        let client = d.join("binaries").join("client");
+        if has_install_script(&client) {
+            return Some(client);
+        }
         if has_install_script(d) {
             return Some(d.to_path_buf());
         }

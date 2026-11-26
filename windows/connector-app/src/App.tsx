@@ -53,7 +53,7 @@ export default function App() {
   const [nav, setNav] = useState<Nav>("runtime");
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [agents, setAgents] = useState<DetectedAgent[]>([]);
-  const [packageRoot, setPackageRoot] = useState("");
+
   const [log, setLog] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -64,6 +64,8 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState<UpdateCheck | null>(null);
   const [confirmUpdate, setConfirmUpdate] = useState(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startupRequested = useRef(false);
+  const [startupPending, setStartupPending] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -139,7 +141,7 @@ export default function App() {
     void (async () => {
       try {
         const root = await invoke<string>("package_root");
-        setPackageRoot(root);
+
         appendLog(`Package root: ${root}`);
         await refreshRuntime();
         await refreshAgents();
@@ -150,6 +152,26 @@ export default function App() {
       }
     })();
   }, [appendLog, refreshAgents, refreshIntegration, refreshRuntime, refreshUpdates]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void refreshRuntime().catch((e) => setError(String(e)));
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [refreshRuntime]);
+
+  useEffect(() => {
+    if (startupRequested.current) return;
+    startupRequested.current = true;
+    void invoke<RuntimeStatus>("start_runtime", { port: null })
+      .then(setRuntime)
+      .catch((e) => {
+        const message = String(e);
+        setError(message);
+        showNotice("err", "Runtime failed to start", message);
+      })
+      .finally(() => setStartupPending(false));
+  }, [showNotice]);
 
   async function onStartRuntime() {
     beginBusy("start");
@@ -296,28 +318,15 @@ export default function App() {
   async function onApplyUpdate() {
     if (!confirmUpdate) {
       setConfirmUpdate(true);
-      showNotice("info", "Click Update again to confirm");
+      showNotice("info", "Click Update again to confirm", "The verified installer will open; follow its prompts and close Connector when asked.");
       return;
     }
     setConfirmUpdate(false);
     beginBusy("update");
-    showNotice("info", "Downloading and installing update…", "Verifying package hash, then running install.ps1.");
+    showNotice("info", "Downloading update…", "Verifying the signed release before launching its installer.");
     try {
-      const deviceWssUrl = runtime?.deviceWssUrl ?? "ws://127.0.0.1:8080/device";
-      const [ok, out] = await invoke<[boolean, string]>("apply_update", {
-        deviceGatewayUrl: deviceWssUrl,
-      });
-      appendLog(out || "(no output)");
-      await refreshIntegration();
-      await refreshUpdates();
-      if (ok) {
-        setStatus("Update applied.");
-        showNotice("ok", "Update complete", "Bridge / plugin package installed.");
-      } else {
-        setStatus("Update failed — see logs.");
-        showNotice("err", "Update failed", "Open Logs for the full output.");
-        setNav("logs");
-      }
+      await invoke<void>("apply_update");
+      setStatus("Verified installer launched. Follow its prompts to complete the update.");
     } catch (e) {
       const msg = String(e);
       setError(msg);
@@ -338,7 +347,9 @@ export default function App() {
         return;
       }
       const mcpUrl = runtime?.mcpUrl ?? "http://127.0.0.1:8080/mcp";
-      const stdioExe = packageRoot ? `${packageRoot}\\aleph-mcp-stdio.exe` : null;
+      const stdioExe = selected.some((a) => a.kind === "claudeDesktop")
+        ? await invoke<string>("stdio_exe")
+        : null;
       for (const agent of selected) {
         const path = await invoke<string>("write_mcp_config", {
           kind: agent.kind,
@@ -412,7 +423,7 @@ export default function App() {
         </nav>
         <div className="runtime-chip">
           <span className={`badge ${runtime?.running && runtime.healthy ? "ok" : ""}`}>
-            {runtime?.running && runtime.healthy ? "MCP running" : "MCP stopped"}
+            {runtime?.running ? (runtime.healthy ? "MCP running" : "MCP starting") : "MCP stopped"}
           </span>
         </div>
       </aside>
@@ -476,8 +487,8 @@ export default function App() {
                   </button>
                 </>
               ) : (
-                <button className="btn btn-primary" disabled={busy} onClick={() => void onStartRuntime()}>
-                  {busyAction === "start" ? "Starting…" : "Start runtime"}
+                <button className="btn btn-primary" disabled={busy || startupPending} onClick={() => void onStartRuntime()}>
+                  {busyAction === "start" || startupPending ? "Starting…" : "Start runtime"}
                 </button>
               )}
             </div>
@@ -543,8 +554,10 @@ export default function App() {
                 <div>
                   <strong>{busyLabel}</strong>
                   <p>
-                    {busyAction === "install" || busyAction === "update"
+                    {busyAction === "install"
                       ? "Running install.ps1 — keep this window open."
+                      : busyAction === "update"
+                        ? "Downloading and verifying the signed installer."
                       : busyAction === "check"
                         ? "Fetching the Aleph Connector release manifest."
                         : "Removing Bridge and plugin."}
@@ -553,6 +566,11 @@ export default function App() {
               </div>
             ) : null}
 
+            {integration?.installed &&
+            (integration.bridgeVersion !== integration.connectorVersion || integration.pluginVersion !== integration.connectorVersion) ? (
+              <p className="status-msg">Bridge or plugin version differs from Connector. Close AutoCAD, then choose Repair / reinstall to apply the bundled integration.</p>
+            ) : null}
+            {!runtime?.healthy ? <p className="status-msg">Start the local runtime before installing or repairing the AutoCAD integration.</p> : null}
             <div className="actions">
               {updateInfo?.updateAvailable ? (
                 <button
@@ -567,7 +585,7 @@ export default function App() {
                       : `Update to ${updateInfo.latest}`}
                 </button>
               ) : null}
-              <button className="btn btn-primary" disabled={busy} onClick={() => void onInstallAutocad()}>
+              <button className="btn btn-primary" disabled={busy || startupPending || !runtime?.healthy} onClick={() => void onInstallAutocad()}>
                 {busyAction === "install"
                   ? "Installing…"
                   : integration?.installed

@@ -60,6 +60,7 @@ docs/
 
 ## Status
 
-Local-first runtime and desktop integration in progress (see
-`docs/plans/2026-11-25-local-first-runtime.md`). Installer packaging and the open-source release
-(relicensing, secret audit, public CI) follow as separate plans.
+Local-first runtime and desktop integration are implemented. Windows NSIS/MSI builds and the
+signed GitHub release/update pipeline are documented in `docs/windows-distribution.md`; a clean
+installation and live AutoCAD upgrade still need verification before release. Open-source release
+work (relicensing, secret audit, public CI) remains separate.
