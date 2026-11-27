@@ -63,6 +63,7 @@ async function main(): Promise<void> {
     'guide',
     'layer',
     'operations',
+    'pccc_boq',
     'pccc_fire_alarm_overlay',
     'pccc_overlay',
     'pccc_sheet',
@@ -145,6 +146,7 @@ async function main(): Promise<void> {
       'cleanup'
     ],
     construct: ['walls', 'grid', 'room', 'dimensions'],
+    pccc_boq: ['preview', 'apply', 'status', 'floors', 'TỔNG CỘNG'],
     pccc_sheet: ['preview', 'apply', 'status'],
     style: [
       'linetypes.list',

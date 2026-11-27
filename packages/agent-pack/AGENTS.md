@@ -16,6 +16,7 @@ chữa cháy) — and use the overlay tools rather than freehand placement:
 - `pccc_fire_alarm_overlay` for báo cháy tự động (preview → apply; never hand-place detectors).
 - `pccc_overlay` for hệ thống chữa cháy tự động (sprinkler) — preview → apply.
 - `pccc_sheet` for the DANH MỤC BẢN VẼ index sheet (banner + sections + per-sheet rows + totals row) — preview → apply; do not draw the index by hand.
+- `pccc_boq` for the THỐNG KÊ VẬT TƯ material statistics sheet (banner + section bands + per-floor rows + per-row totals) — preview → apply; do not draw the BoQ by hand.
 
 A real PCCC deliverable is a **sheet series** (BC-xx mặt bằng từng tầng/hầm/mái, CC-xx chữa
 cháy tự động, CS-xx chiếu sáng sự cố, CT-xx chi tiết, SĐTN-xx sơ đồ thoát nạn, BoQ) — not a
