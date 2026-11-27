@@ -22,5 +22,5 @@ single drawing. Use the **pccc-bachkhoa-cad-standards** skill for the real sheet
 layer/block/BoQ conventions, and khung tên A3 — never invent a "BC-01…04" chain.
 
 Before finishing, run the completeness checklist (master skill §3): correct subsystem only,
-sheet set present, spacing per standard (5.1/7.2 m nhiệt, 4.0 m đầu phun, 85 dBA @ 3 m chuông),
-Z nút ấn = 1.4 ± 0.1 m, no overlaps (`drawing.check`), BoQ + bảng ký hiệu present.
+sheet set present, spacing per standard (5.1/7.2 m nhiệt, 4.0 m đầu phun, ≥ 65 dBA chuông (ngủ ≥ 75 dBA)),
+Z nút ấn = 1.4 ± 0.2 m, no overlaps (`drawing.check`), BoQ + bảng ký hiệu present.

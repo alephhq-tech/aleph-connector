@@ -32,18 +32,18 @@ Hệ thống Báo cháy tự động là hạng mục cốt lõi trong hồ sơ 
 1. **Vị trí nút ấn khẩn cấp (`NUT NHAN KHAN CAP`)**:
    - Bố trí tại **cửa vào buồng thang bộ thoát hiểm** hoặc lối ra thoát nạn chính của mỗi tầng.
    - Vị trí lắp đặt: Phía ngoài sảnh đón hành lang, bên cạnh khung cửa thoát hiểm.
-   - Cao độ lắp đặt: $Z = 1.4\text{ m} \pm 0.1\text{ m}$ so với mặt sàn hoàn thiện.
+   - Cao độ lắp đặt: $Z = 1.4\text{ m} \pm 0.2\text{ m}$ so với mặt sàn hoàn thiện.
    - **CẤM**: Gắn nút ấn trên vách buồng cabin thang máy hoặc trong góc khuất.
 2. **Vị trí chuông còi kết hợp đèn chớp (`CHUONG BAO CHAY`)**:
    - Lắp đặt đồng trục ngay phía trên nút ấn báo cháy khẩn cấp hoặc trên dạ cửa buồng thang.
    - Cao độ lắp đặt: $Z = 2.2\text{ m} - 2.5\text{ m}$ so với sàn (cách trần $\ge 0.15\text{ m}$).
-   - Mức áp suất âm thanh tối thiểu: $\ge 85\text{ dBA}$ tại khoảng cách $3\text{ m}$.
+   - Mức cường độ âm thanh: ≥ 65 dBA (khu vực ngủ ≥ 75 dBA), không lớn hơn 105 dBA; mức âm vượt độ ồn môi trường ≥ 10 dBA (≥ 15 dBA khu vực ngủ) — tính trung bình 60 s (5.11.2.1, TCVN 7568-14:2025).
 
 ### Cấu kiện dầm sâu > 0.3 m
+- **Heat detectors** (5.9.2.1.5): dầm sâu $>0.3\text{ m}$ — spacing giảm **30%** (7.2 m → 5.0 m; reach 5.1 m → 3.6 m).
+- **Smoke detectors** (5.9.1.1.6): dầm $\ge 0.3\text{ m}$ — ô giữa dầm $< 4\text{ m}^2$ (trần 2–4 m) → lắp dưới mặt dầm; ô $\ge 4\text{ m}^2$ → ≥ 1 đầu báo mỗi ô; trần $\ge 4\text{ m}$ + ô $< 9\text{ m}^2$ → dưới mặt dầm; ô $\ge 9\text{ m}^2$ → trong ô.
 - Dầm sâu $>0.3\text{ m}$: mỗi ô giữa các dầm được coi là **phòng riêng**, phải bảo vệ riêng.
-- **Khoảng cách giữa các đầu báo giảm 30%** (5.9.2.1.5 — áp dụng cả khói lẫn nhiệt).
-- Trần $>2\text{ m}$ + cấu kiện dầm sâu $>0.3\text{ m}$: nếu diện tích giữa các dầm $\ge 4\text{ m}^2$ — lắp ≥1 đầu báo trong mỗi ô.
-- Đầu báo cách cửa cấp khí / cánh quạt ≥ 0.4 m (5.9.1.1.4 b, c); cách trần $0.025\text{–}0.3\text{ m}$ (trần <4 m), $\le 0.6\text{ m}$ (trần 4–15 m).
+- Đầu báo khói cách cửa cấp khí / quạt ≥ 0.4 m (5.9.1.1.4 b, c); đầu báo nhiệt cách cửa cấp khí ≥ 0.6 m (5.9.2.1.4 b); cách trần $0.025\text{–}0.3\text{ m}$ (trần <4 m), $\le 0.6\text{ m}$ (trần 4–15 m).
 
 ---
 

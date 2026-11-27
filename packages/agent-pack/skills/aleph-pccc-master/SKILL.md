@@ -54,15 +54,16 @@ Agent phải đọc và nhận diện:
    - Sảnh thang máy, sảnh chính, hành lang, phòng bảo vệ, văn phòng: Dùng **Đầu báo khói quang kiểu điểm (Optical Smoke)**.
 2. **Hệ thống trục kết cấu (Columns & Beams)**:
    - Dây tín hiệu và ống chữa cháy phải chạy bám theo các trục dầm chính (`beam highways`), không đi chéo cắt ngang qua giữa ô sàn.
-   - **Dầm sâu > 0.3 m**: khoảng cách giữa các đầu báo giảm **30%** và mỗi ô giữa các dầm sâu được coi là phòng riêng, phải bảo vệ riêng.
+   - **Dầm sâu > 0.3 m**: heat spacing giảm **30%** (5.9.2.1.5); smoke dùng quy tắc lắp đặt theo ô (5.9.1.1.6) — ô $< 4\text{ m}^2$ (trần 2–4 m) → dưới mặt dầm; ô $\ge 4\text{ m}^2$ → ≥ 1 đầu báo mỗi ô; mỗi ô giữa các dầm sâu được coi là phòng riêng, phải bảo vệ riêng.
 3. **Vùng cấm (Obstacles & Forbidden Zones)**:
    - Giếng thang máy: Cabin di chuyển bên trong giếng thang; CẤM đặt đầu báo, CẤM đi dây/ống xuyên qua giếng thang.
    - Ram dốc xe: Khoảng tĩnh không cho xe cộ; dây/ống phải né dầm biên trên cao, không đặt thiết bị thấp.
    - Lối thoát nạn & Cửa buồng thang bộ: Vị trí đặt Hộp nút ấn khẩn (MCP) và Chuông đèn kết hợp ở cao độ $Z = 1.4\text{m}$ (ngay bên cạnh cửa buồng thang).
+   - Không gian trống nửa hình cầu bán kính 0.6 m xung quanh mặt trước hộp nút ấn (5.10.4).
 
 ### Bước 3: Tiêu chuẩn Kỹ thuật Bắt buộc
-- **Báo cháy**: Tuân thủ **TCVN 7568-14:2025** (thay thế TCVN 5738:2021). Bán kính bảo vệ đầu báo nhiệt $R \le 5.1\text{m}$, đầu báo khói $R \le 7.2\text{m}$; khoảng cách giữa các đầu báo ≤ 7.2 m (nhiệt) / ≤ 10.2 m (khói); hàng ngoài tường 3.6 m (nhiệt) / 5.1 m (khói); MCP ở $Z = 1.4 \pm 0.1\text{ m}$; chuông ≥ 85 dBA @ 3 m; mạch dây Daisy-Chain nối tiếp khép kín hoặc kết thúc EOLR 4.7kΩ.
-- **Sprinkler**: Tuân thủ **TCVN 7336:2021**. Khoảng cách đầu phun **≤ 4.0 m** (cả 3 nhóm 1/2/3); diện tích bảo vệ ≤ 12.0/9.0/9.0 m²/đầu phun; khoảng cách tối thiểu đầu phun 1.5 m; đầu phun cách trần 0.08–0.30 m; cách tường không chịu lửa ≤ 1.2 m; chiều cao tối đa bảo vệ 20 m. Mạng ống phân cấp DN 100 → DN 25 (Bảng 4, TCVN 7336).
+- **Báo cháy**: Tuân thủ **TCVN 7568-14:2025** (thay thế TCVN 5738:2021). Bán kính bảo vệ đầu báo nhiệt $R \le 5.1\text{m}$, đầu báo khói $R \le 7.2\text{m}$; khoảng cách giữa các đầu báo ≤ 7.2 m (nhiệt) / ≤ 10.2 m (khói); hàng ngoài tường 3.6 m (nhiệt) / 5.1 m (khói); MCP ở $Z = 1.4 \pm 0.2\text{ m}$; chuông ≥ 65 dBA (khu vực ngủ ≥ 75 dBA), không quá 105 dBA; mạch dây Daisy-Chain nối tiếp khép kín hoặc kết thúc EOLR 4.7kΩ.
+- **Sprinkler**: Tuân thủ **TCVN 7336:2021**. Khoảng cách đầu phun **≤ 4.0 m** (cả 3 nhóm 1/2/3); diện tích bảo vệ ≤ 12.0/9.0/9.0 m²/đầu phun; khoảng cách tối thiểu đầu phun 1.5 m; đầu phun cách trần 0.08–0.30 m; cách tường K0/K1 ≤ 2.0 m (nửa spacing), cách tường K2/K3 và loại khác ≤ 1.2 m; chiều cao tối đa bảo vệ 20 m. Mạng ống phân cấp DN 100 → DN 25 (Bảng 4, TCVN 7336).
 - **Thoát nạn**: Tuân thủ **TCVN 13456:2022**. Đèn EXIT tại mọi cửa thoát nạn; đèn chiếu sáng sự cố dọc hành lang và cầu thang với độ rọi tối thiểu $\ge 1.0\text{ lux}$ trên mặt sàn.
 - **Họng nước vách tường**: Tuân thủ **TCVN 3890:2023** & QCVN 06:2022/BXD. Họng tường cách góc $\ge 0.5\text{ m}$; cuộn vòi trong tủ có vạch chia.
 - **Bình chữa cháy**: Tuân thủ QCVN 06:2022/BXD. Bình treo cao $0.8\text{–}1.5\text{ m}$ so với mặt sàn, trong phạm vi hoạt động $\le 30\text{ m}$.
@@ -71,7 +72,7 @@ Agent phải đọc và nhận diện:
 1. Sử dụng đúng Block thư viện: `DAU BAO KHOI - KHONG DIA CHI`, `DAU BAO NHIET`, `NUT NHAN KHAN CAP`, `CHUONG BAO CHAY`, `DIEN_TRO`, `BOX NOI DAY FA`, `MODULE ZM`, `CM MODULE`, `dp`, `họng 1 cửa`, `EMERL`, `EX`, `ABC`, `tru cc3c`.
 2. Sử dụng đúng Layer: `FA-Equipment`, `2x1.0mm`, `2x1.5mm`, `DN 25` đến `DN 150`, `TEXT`, `2-GHICHU`.
 3. Tuyệt đối chống đè chữ: Text ghi chú, cao độ, kích thước không được đè lên nhau; kiểm tra bằng `drawing.check` (overlap + outside-bounds) trước khi hoàn thành.
-4. Xuất Bảng ký hiệu & Thống kê vật tư (BoQ) riêng biệt, ngay ngắn ở góc phải bản vẽ — bảng 6 cột: STT (1000) / KÝ HIỆU (1800) / TÊN (8000) / ĐVT (1200) / SỐ LƯỢNG (1500) / GHI CHÚ (3500) mm; hàng 600–700 mm; chữ 250 mm.
+4. Xuất **Hai bảng**: (a) Bảng ký hiệu & ghi chú (6 cột: STT 1000 / KÝ HIỆU 1800 / TÊN 8000 / ĐVT 1200 / SỐ LƯỢNG 1500 / GHI CHÚ 3500 mm; hàng 600–700 mm; chữ 250 mm) đặt ở góc phải mỗi tờ — không chèn mặt bằng; (b) Bảng thống kê vật liệu theo tầng (riêng 1 tờ A3): banner tiêu đề `BẢNG THỐNG KÊ VẬT LIỆU - TÒA NHÀ <TÊN DỰ ÁN>`, các mục lớn (I — HỆ THỐNG BÁO CHÁY / II — CHIẾU SÁNG SỰ CỐ & THOÁT NẠN / III — HỆ THỐNG CHỮA CHÁY) với băng xanh dương, cột `STT | Danh mục | ĐVT | Hầm | T1…T7 | Tum | Tổng cộng`, Tổng cộng = tổng cột tầng của mỗi dòng (xem `pccc-bachkhoa-cad-standards` §4.2).
 5. Gán Khung tên A3 chuẩn với mã bản vẽ chính xác (`BC-01`, `CC-01`, `CS-01`, `EX-01`…) và ghi rõ tên dự án + hạng mục + tầng + mã bản vẽ + tỷ lệ.
 
 ---
@@ -80,7 +81,7 @@ Agent phải đọc và nhận diện:
 
 1. [ ] **Hạng mục đúng**: chỉ vẽ thiết bị của hạng mục được yêu cầu; không chèn thiết bị hạng mục khác.
 2. [ ] **Đủ thành phần**: mặt bằng + (mặt cắt + sơ đồ nguyên lý + chi tiết nếu hạng mục yêu cầu) + bảng ký hiệu/ghi chú + khung tên A3.
-3. [ ] **Đúng tiêu chuẩn**: spacing đầu báo (5.1/7.2 m nhiệt, 7.2/10.2 m khói), spacing đầu phun (4.0 m), độ rọi sự cố (≥ 1.0 lux), Z nút ấn (1.4 ± 0.1 m), chuông ≥ 85 dBA @ 3 m.
+3. [ ] **Đúng tiêu chuẩn**: spacing đầu báo (5.1/7.2 m nhiệt, 7.2/10.2 m khói), spacing đầu phun (4.0 m), độ rọi sự cố (≥ 1.0 lux), Z nút ấn (1.4 ± 0.2 m, khoảng trống nửa hình cầu 0.6 m), chuông ≥ 65 dBA (ngủ ≥ 75 dBA), không quá 105 dBA.
 4. [ ] **Vị trí đúng**: đầu báo/đèn không nằm trong giếng thang, không trong ram dốc, không che lấp bởi dầm sâu > 0.3 m; MCP/chuông ở vị trí gần cửa buồng thang.
 5. [ ] **Đúng lớp & Block**: mọi thiết bị dùng Block thư viện đúng (không gõ chữ tự vẽ); đường dây đi trực giao bám dầm, EOLR ở cuối loop.
 6. [ ] **Chưa đè chữ**: đã kiểm tra `drawing.check` cho toàn bản vẽ — 0 overlap/out-of-bounds mới báo "xong".

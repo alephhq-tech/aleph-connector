@@ -21,7 +21,7 @@ Theo TCVN 7336:2021 Điều 5 và Bảng 1, các công trình phổ biến đư�
 
 *TCVN 7336:2021 Table 1 — all Groups 1–3 share the 4.0 m max head-to-head spacing; the
 differences are density (I), calculated area (S = 60/120/120 m²), coverage per head (12.0/9.0/9.0 m²)
-and discharge time. Min head-to-head spacing 1.5 m; head-to-wall ≤ 1.2 m (unprotected wall);
+and discharge time. Min head-to-head spacing 1.5 m; head-to-wall: ≤ 2.0 m (half spacing) for K0/K1 wall classes (5.2.22), ≤ 1.2 m for K2/K3 and other classes;
 ceiling-deflector clearance 0.08–0.30 m; max protected height 20 m.*
 
 ---

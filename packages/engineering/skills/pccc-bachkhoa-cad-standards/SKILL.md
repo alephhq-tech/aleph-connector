@@ -82,7 +82,11 @@ mặt bằng từng tầng/hầm/mái, mặt cắt A-A, sơ đồ nguyên lý, c
 
 ## 4. QUY CÁCH TRÌNH BÀY BẢNG KÝ HIỆU & THỐNG KÊ VẬT TƯ (BoQ)
 
-Bảng thống kê vật tư được bố trí ở phía bên phải bản vẽ, không chèn lên mặt bằng kiến trúc. Cấu trúc bảng gồm 6 cột:
+Hai loại bảng vật tư cần phân biệt:
+
+### 4.1. Bảng ký hiệu & ghi chú trên mặt bằng (embedded legend)
+
+Bảng ký hiệu/ghi chú được bố trí ở phía bên phải bản vẽ, không chèn lên mặt bằng kiến trúc. Cấu trúc bảng gồm 6 cột:
 
 | Cột | Tiêu đề | Chiều rộng chuẩn (tỷ lệ 1:100) | Nội dung |
 | :---: | :--- | :---: | :--- |
@@ -96,3 +100,15 @@ Bảng thống kê vật tư được bố trí ở phía bên phải bản vẽ
 *Quy cách ô*:
 - Chiều cao hàng tiêu chuẩn: $600\text{mm} - 700\text{mm}$.
 - Text trong bảng: Chiều cao $250\text{mm}$, căn lề giữa (Middle Center) cho STT, Ký hiệu, ĐVT, Số lượng; căn lề trái (Middle Left) cho Tên thiết bị và Ghi chú.
+
+### 4.2. Bảng Thống kê vật liệu theo tầng (material statistics — trang độc lập)
+
+Đây là bảng thống kê vật tư **cuối cùng trong hồ sơ**, tách riêng 1 tờ A3 — không nhét trên mặt bằng bất kỳ tầng nào. Mẫu SUNLAND 20-10-2026 (xem bản vẽ `THỐNG KÊ VẬT TƯ`):
+
+- **Tiêu đề trang**: banner nền xanh đậm, chữ trắng đậm giữa: `BẢNG THỐNG KÊ VẬT LIỆU - TÒA NHÀ <TÊN DỰ ÁN>`.
+- **Cấu trúc**: bảng chia thành các **mục lớn** theo hạng mục (ví dụ: I — HỆ THỐNG BÁO CHÁY / II — CHIẾU SÁNG SỰ CỐ & THOÁT NẠN / III — HỆ THỐNG CHỮA CHÁY (SPRINKLER & VẢCH TƯỜNG)) → mỗi mục có **băng nền xanh dương**, chữ trắng đậm, STT + tên hạng mục, rồi các dòng thiết bị.
+- **Cột**: `STT | Danh mục / Tên thiết bị vật liệu | ĐVT | Hầm | T1 | T2 | T3 | T4 | T5 | T6 | T7 | Tum | Tổng cộng` — mỗi cột tầng là 1 cột số; `Tổng cộng` = tổng theo từng dòng, cột `Tổng cộng` được tô nền cyan nhạt.
+- **Hàng dữ liệu**: chữ thường, STT/ĐVT căn giữa, số lượng căn phải, căn trái cho tên thiết bị.
+- **Kiểm tra**: Tổng cộng của mỗi dòng = tổng các cột tầng cộng lại (bắt buộc đối chiếu).
+- **Không có** header/footer/page number/date trên trang này — chỉ có title banner và bảng.
+- **Đơn vị vật tư tham chiếu** (mẫu SUNLAND): Trung tâm báo cháy (Tủ), Chuông đèn báo cháy (Cái/Bộ), Điện trở cuối mạch (EDL) (Cái), Đầu báo khói (Cái), Cáp tín hiệu 2x1.0mm2 (m), Cáp tín hiệu 2x1.5mm2 (m), Ống PVC D20 (m), Đèn chiếu sáng sự cố 2h (Cái), Dây chống cháy CU/FR 2x1.5mm2 (m), Sơ đồ chỉ dẫn thoát nạn 400x600mm (Cái), Mặt nạ phòng độc (Cái), Đầu phun Sprinkler (Cái), Cụm đầu phun (Cụm), Ống thép PCCC DN25/DN32/DN100 (m), Bình chữa cháy MFZL ABC 8KG (Bình), 2 khớp nối DN65 (Trụ).

@@ -46,15 +46,17 @@ detector. The controlling figure is the reach: every point of the protected ceil
 - Ngưỡng kích hoạt của đầu báo cố định/kep phải cao hơn nhiệt độ tối đa của môi trường tại vị trí lắp
   ít nhất $20\text{ °C}$ (4.1.5.6).
 - Không dùng đầu báo nhiệt gia tăng/kep trong môi trường biến động nhiệt $>5\text{ °C/min}$ (4.1.5.5).
-- Beam/dầm sâu $>0{,}3\text{ m}$: khoảng cách giữa các đầu báo giảm **30%** (5.9.2.1.5 — áp dụng cả smoke
-  và heat) và mỗi ô giữa các dầm sâu $>0{,}3\text{ m}$ được coi là phòng riêng, phải bảo vệ riêng.
+- **Heat detectors** (5.9.2.1.5): beam/dầm sâu $>0.3\text{ m}$ — spacing giảm **30%** (từ 7.2 m → 5.0 m; reach 5.1 m → 3.6 m).
+- **Smoke detectors** (5.9.1.1.6): beams $\le 0.3\text{ m}$ — normal spacing (7.2/10.2 m). Beams $\ge 0.3\text{ m}$: $2\text{–}4\text{ m}$ trần + ô < 4 m² → lắp dưới mặt dầm; ô $\ge 4\text{ m}^2$ → ≥ 1 đầu báo mỗi ô; $h \ge 4\text{ m}$ + ô < 9 m² → dưới mặt dầm; $h \ge 4\text{ m}$ + ô $\ge 9\text{ m}^2$ → trong ô.
 
 ## 3b. Smoke Detector Additional Rules (Điều 5.9.1.1 - TCVN 7568-14:2025)
 
 - Trần $>2\text{ m}$ + cấu kiện dầm sâu $>0{,}3\text{ m}$: nếu diện tích giữa các dầm $\ge 4\text{ m}^2$ —
-  lắp ≥1 đầu báo trong mỗi ô. Trần $<2\text{ m}$ + cấu kiện $\le 0{,}3\text{ m}$: spacing $\le 15\text{ m}$,
-  hàng ngoài tường $\le 10{,}2\text{ m}$.
-- Đầu báo cách cửa cấp khí $\ge 0{,}4\text{ m}$ (5.9.1.1.4 b); cách cánh quạt $\ge 0{,}4\text{ m}$ (5.9.1.1.4 c).
+  lắp ≥1 đầu báo trong mỗi ô; ô $< 4\text{ m}^2$ → lắp dưới mặt dầm. Trần $\ge 4\text{ m}$ + dầm $\ge 0{,}3\text{ m}$:
+  ô $< 9\text{ m}^2$ → lắp dưới mặt dầm; ô $\ge 9\text{ m}^2$ → lắp trong ô (5.9.1.1.6).
+- Khu vực có dòng không khí thay đổi lớn (phòng máy tính, phòng sạch): spacing và wall clearance
+  giảm theo Bảng 1 — 15–20 lần đổi khí/giờ: 7.2 m / 3.6 m; 20–30: 6.0 m / 3.0 m; 30–60: 4.8 m / 2.4 m; ≥ 60: 3.6 m / 1.8 m (5.9.1.1.5).
+- Đầu báo khói cách cửa cấp khí $\ge 0{,}4\text{ m}$ (5.9.1.1.4 b); cách cánh quạt $\ge 0{,}4\text{ m}$ (5.9.1.1.4 c); đầu báo nhiệt cách cửa cấp khí $\ge 0{,}6\text{ m}$ (5.9.2.1.4 b).
 - Cảm biến đến trần: $0{,}025\text{–}0{,}3\text{ m}$ (trần $<4\text{ m}$), $\le 0{,}6\text{ m}$ (trần $4\text{–}15\text{ m}$) (5.9.1.1.1).
 
 ## 4. Manual Call Point (MCP) & Alarm Combination Units (Điều 7)
