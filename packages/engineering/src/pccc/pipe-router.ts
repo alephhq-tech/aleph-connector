@@ -19,6 +19,7 @@ export interface PipeRouterInput {
   layerBranch?: string
   excludedBoundaries?: Point2D[][]
   clearanceMm?: number
+  detourObstacles?: boolean
   /** Drawing units from `drawing.summary` `insUnits` (E8). Absent/`unitless` blocks the route. */
   insUnits?: DrawingUnits
 }
@@ -192,26 +193,114 @@ export function routeSprinklerPipes(input: PipeRouterInput): PipeRouteResult {
     const minRowX = Math.min(mainX, firstHead.x)
     const maxRowX = Math.max(mainX, lastHead.x)
 
-    const branchSegLengthM = Math.round(toMetres(Math.abs(maxRowX - minRowX)) * 100) / 100
-    branchTotalLengthMm += Math.abs(maxRowX - minRowX)
+    // Find any intersecting excluded ring for this horizontal row
+    const intersectingRings = excludedBoundaries
+      .map((ring) => ({ ring, box: bboxOf(ring) }))
+      .filter(
+        (r) =>
+          r.box &&
+          rowY >= r.box.minY &&
+          rowY <= r.box.maxY &&
+          maxRowX > r.box.minX &&
+          minRowX < r.box.maxX
+      )
+      .sort((a, b) => a.box!.minX - b.box!.minX)
 
     const branchDiameter = getRecommendedPipeDiameter(rowHeads.length)
-    const branchSegment: PipeSegmentRoute = {
-      id: `PIPE_BRANCH_${segIdx++}`,
-      kind: 'branch',
-      start: [minRowX, rowY],
-      end: [maxRowX, rowY],
-      nominalDiameterMm: branchDiameter,
-      connectedHeadIds: rowHeads.map((h) => h.id),
-      lengthM: branchSegLengthM
+
+    if (intersectingRings.length === 0 || !input.detourObstacles) {
+      const branchSegLengthM = Math.round(toMetres(Math.abs(maxRowX - minRowX)) * 100) / 100
+      branchTotalLengthMm += Math.abs(maxRowX - minRowX)
+
+      const branchSegment: PipeSegmentRoute = {
+        id: `PIPE_BRANCH_${segIdx++}`,
+        kind: 'branch',
+        start: [minRowX, rowY],
+        end: [maxRowX, rowY],
+        nominalDiameterMm: branchDiameter,
+        connectedHeadIds: rowHeads.map((h) => h.id),
+        lengthM: branchSegLengthM
+      }
+      segments.push(branchSegment)
+      cadOperations.push({
+        kind: 'line',
+        layer: layerBranch,
+        start: branchSegment.start,
+        end: branchSegment.end
+      })
+    } else {
+      let curX = minRowX
+
+      for (const obs of intersectingRings) {
+        const b = obs.box!
+        const margin = Math.max(300 * unitsPerMm, clearance + 50 * unitsPerMm)
+        const xLeft = Math.max(curX, b.minX - margin)
+        const xRight = b.maxX + margin
+
+        if (xLeft > curX) {
+          const segLen = Math.abs(xLeft - curX)
+          branchTotalLengthMm += segLen
+          const seg: PipeSegmentRoute = {
+            id: `PIPE_BRANCH_${segIdx++}`,
+            kind: 'branch',
+            start: [curX, rowY],
+            end: [xLeft, rowY],
+            nominalDiameterMm: branchDiameter,
+            connectedHeadIds: rowHeads.filter((h) => h.x >= curX && h.x <= xLeft).map((h) => h.id),
+            lengthM: Math.round(toMetres(segLen) * 100) / 100
+          }
+          segments.push(seg)
+          cadOperations.push({ kind: 'line', layer: layerBranch, start: seg.start, end: seg.end })
+        }
+
+        const detourY =
+          Math.abs(rowY - b.minY) <= Math.abs(rowY - b.maxY)
+            ? b.minY - margin
+            : b.maxY + margin
+
+        const pts: Point2D[] = [
+          [xLeft, rowY],
+          [xLeft, detourY],
+          [xRight, detourY],
+          [xRight, rowY]
+        ]
+        for (let p = 0; p < 3; p++) {
+          const p1 = pts[p]!
+          const p2 = pts[p + 1]!
+          const d = Math.abs(p2[0] - p1[0]) + Math.abs(p2[1] - p1[1])
+          branchTotalLengthMm += d
+          const seg: PipeSegmentRoute = {
+            id: `PIPE_BRANCH_${segIdx++}`,
+            kind: 'branch',
+            start: p1,
+            end: p2,
+            nominalDiameterMm: branchDiameter,
+            connectedHeadIds: [],
+            lengthM: Math.round(toMetres(d) * 100) / 100
+          }
+          segments.push(seg)
+          cadOperations.push({ kind: 'line', layer: layerBranch, start: seg.start, end: seg.end })
+        }
+
+        curX = xRight
+      }
+
+      if (curX < maxRowX) {
+        const segLen = Math.abs(maxRowX - curX)
+        branchTotalLengthMm += segLen
+        const seg: PipeSegmentRoute = {
+          id: `PIPE_BRANCH_${segIdx++}`,
+          kind: 'branch',
+          start: [curX, rowY],
+          end: [maxRowX, rowY],
+          nominalDiameterMm: branchDiameter,
+          connectedHeadIds: rowHeads.filter((h) => h.x >= curX && h.x <= maxRowX).map((h) => h.id),
+          lengthM: Math.round(toMetres(segLen) * 100) / 100
+        }
+        segments.push(seg)
+        cadOperations.push({ kind: 'line', layer: layerBranch, start: seg.start, end: seg.end })
+      }
     }
-    segments.push(branchSegment)
-    cadOperations.push({
-      kind: 'line',
-      layer: layerBranch,
-      start: branchSegment.start,
-      end: branchSegment.end
-    })
   }
 
   const branchLengthM = Math.round(toMetres(branchTotalLengthMm) * 100) / 100

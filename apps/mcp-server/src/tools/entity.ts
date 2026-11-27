@@ -121,6 +121,22 @@ export const entityInputSchema = z.discriminatedUnion('operation', [
     documentName,
     instanceId,
     idempotencyKey
+  }),
+  z.object({
+    operation: z.literal('trace_boundary'),
+    point: z
+      .union([
+        z.tuple([z.number(), z.number()]),
+        z.tuple([z.number(), z.number(), z.number()]),
+        z.object({ x: z.number(), y: z.number(), z: z.number().optional() })
+      ])
+      .describe('Internal seed point in WCS [x, y] or {x, y} to detect enclosing boundary from'),
+    detectIslands: z
+      .boolean()
+      .optional()
+      .describe('Whether to detect interior island boundaries. Default true.'),
+    documentName,
+    instanceId
   })
 ])
 
@@ -312,6 +328,21 @@ export function registerEntityTools(server: McpServer, baseBridge: BridgeClient)
             { signal: ctx.mcpReq.signal }
           )
           return textResult(updated)
+        }
+        case 'trace_boundary': {
+          const pt = Array.isArray(input.point)
+            ? { x: input.point[0]!, y: input.point[1]!, z: input.point[2] ?? 0 }
+            : { x: input.point.x, y: input.point.y, z: input.point.z ?? 0 }
+          const traced = await bridge.request(
+            RpcMethod.EntityTraceBoundary,
+            {
+              point: pt,
+              detectIslands: input.detectIslands,
+              documentName: input.documentName
+            },
+            { signal: ctx.mcpReq.signal }
+          )
+          return textResult(traced)
         }
       }
     })

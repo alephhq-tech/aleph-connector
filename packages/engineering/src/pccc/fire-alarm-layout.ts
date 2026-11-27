@@ -179,13 +179,22 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
 
     for (const room of bucket.rooms) {
       if (!room.boundary || room.boundary.length < 3) continue
-      // Elevator shafts, voids, and ramps must NEVER have sensors placed inside
+      // Elevator shafts, stairwells, voids, and ramps must NEVER have general basement sensors placed inside
+      const name = room.name || ''
+      const isLobby = /s[aả]nh|lobby|corridor/i.test(name)
       const isElevator =
-        room.usage === 'elevator' || /thang(\s*m[aá]y)?|elevator/i.test(room.name || '')
+        room.usage === 'elevator' ||
+        (!isLobby && /(h[oố]\s*)?thang\s*m[aá]y|elevator(\s*shaft)?/i.test(name))
       if (isElevator) {
         continue
       }
-      const isRamp = /ram(\s*d[oố]c)?|d[oố]c|ramp/i.test(room.name || '')
+      const isStair =
+        room.usage === 'stairwell' ||
+        (!isLobby && /thang\s*b[oộ]|bu[oồ]ng\s*thang|stair(well)?|tho[aá]t\s*hi[eể]m/i.test(name))
+      if (isStair) {
+        continue
+      }
+      const isRamp = /ram(\s*d[oố]c)?|d[oố]c(\s*xe)?|ramp/i.test(name)
       if (isRamp) {
         continue
       }
@@ -229,6 +238,11 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
             if (pointInPolygon(pt, shaft)) return false
           }
         }
+        if (input.forbiddenZones) {
+          for (const fz of input.forbiddenZones) {
+            if (pt[0] >= fz.minX && pt[0] <= fz.maxX && pt[1] >= fz.minY && pt[1] <= fz.maxY) return false
+          }
+        }
         return true
       }
 
@@ -251,6 +265,17 @@ export function generateFireAlarmLayout(input: FireAlarmLayoutInput): FireAlarmL
         if (input.elevatorShafts) {
           for (const shaft of input.elevatorShafts) {
             if (distToPolygonBoundary(pt, shaft) < shaftClearance) return false
+          }
+        }
+        if (input.forbiddenZones) {
+          for (const fz of input.forbiddenZones) {
+            if (
+              pt[0] >= fz.minX - shaftClearance &&
+              pt[0] <= fz.maxX + shaftClearance &&
+              pt[1] >= fz.minY - shaftClearance &&
+              pt[1] <= fz.maxY + shaftClearance
+            )
+              return false
           }
         }
         // Clause 5.9.1.1.4 a) / 5.9.2.1.4 a) bound the outer row on BOTH sides: no farther than

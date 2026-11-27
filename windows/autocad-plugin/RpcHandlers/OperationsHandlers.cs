@@ -30,7 +30,9 @@ namespace CadAI.AutoCAD.RpcHandlers
             MainThreadDispatcher.RunAsync(() =>
             {
                 var doc = DocumentContext.Resolve(request.DocumentName);
-                var db = doc.Database;
+                using (doc.LockDocument())
+                {
+                    var db = doc.Database;
 
                 // Preview runs in an isolated transaction that is ALWAYS aborted.
                 // It NEVER creates a native undo group, never invokes ScreenRefresh,
@@ -190,6 +192,7 @@ namespace CadAI.AutoCAD.RpcHandlers
                             CauseCode = (ex as LocalRpcException)?.ErrorCode
                         }
                     };
+                }
                 }
             });
         [JsonRpcMethod("operations.revert", UseSingleObjectParameterDeserialization = true)]

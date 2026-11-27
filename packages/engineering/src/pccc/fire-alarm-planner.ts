@@ -35,37 +35,63 @@ export function planHighwayFireAlarm(input: HighwayFireAlarmPlannerInput): FireA
   const layerText = input.layerText ?? 'FA-TEXT'
   const scale = input.symbolScale ?? 1.0
 
-  // 1. Collect all elevator shaft boundaries from explicit elevatorShafts AND rooms with usage === 'elevator'
-  const allElevatorShafts = [...(input.elevatorShafts ?? [])]
+  // 1. Collect all forbidden polygons: elevator shafts, stairwells, ramps, and voids
+  const allForbiddenPolygons: Point2D[][] = [...(input.elevatorShafts ?? [])]
+  const elevatorShaftsForLayout: Point2D[][] = [...(input.elevatorShafts ?? [])]
+
   if (input.rooms) {
     for (const r of input.rooms) {
-      const isElevator = r.usage === 'elevator' || /thang(\s*m[aá]y)?|elevator/i.test(r.name || '')
-      if (isElevator && r.boundary && r.boundary.length >= 3) {
-        allElevatorShafts.push(r.boundary)
+      const name = r.name || ''
+      const isLobby = /s[aả]nh|lobby|corridor/i.test(name)
+      const isElevator =
+        r.usage === 'elevator' ||
+        (!isLobby && /(h[oố]\s*)?thang\s*m[aá]y|elevator(\s*shaft)?/i.test(name))
+      const isStair =
+        r.usage === 'stairwell' ||
+        (!isLobby && /thang\s*b[oộ]|bu[oồ]ng\s*thang|stair(well)?|tho[aá]t\s*hi[eể]m/i.test(name))
+      const isRamp =
+        r.usage === 'ramp' ||
+        /ram(\s*d[oố]c)?|d[oố]c(\s*xe)?|car\s*ramp/i.test(name)
+      const isVoid =
+        r.usage === 'void' ||
+        /th[oô]ng\s*t[aầ]ng|\bvoid\b/i.test(name)
+
+      const isForbidden = isElevator || isStair || isRamp || isVoid
+
+      if (r.boundary && r.boundary.length >= 3) {
+        if (isElevator) elevatorShaftsForLayout.push(r.boundary)
+        if (isForbidden) allForbiddenPolygons.push(r.boundary)
+      }
+      if (r.excludedBoundaries) {
+        for (const eb of r.excludedBoundaries) {
+          if (eb && eb.length >= 3) {
+            allForbiddenPolygons.push(eb)
+          }
+        }
       }
     }
   }
 
-  // Derive forbidden zones (bounding boxes) for wire routing around elevator shafts
-  const derivedElevatorZones: Array<{ minX: number; minY: number; maxX: number; maxY: number }> = []
-  for (const shaft of allElevatorShafts) {
-    if (!shaft || shaft.length === 0) continue
+  // Derive forbidden zones (bounding boxes) for wire routing and device avoidance around shafts, stairs, ramps
+  const derivedForbiddenZones: Array<{ minX: number; minY: number; maxX: number; maxY: number }> = []
+  for (const poly of allForbiddenPolygons) {
+    if (!poly || poly.length === 0) continue
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
       maxY = -Infinity
-    for (const [x, y] of shaft) {
+    for (const [x, y] of poly) {
       if (x < minX) minX = x
       if (y < minY) minY = y
       if (x > maxX) maxX = x
       if (y > maxY) maxY = y
     }
-    derivedElevatorZones.push({ minX, minY, maxX, maxY })
+    derivedForbiddenZones.push({ minX, minY, maxX, maxY })
   }
 
   const forbiddenZones = input.forbiddenZones
-    ? [...input.forbiddenZones, ...derivedElevatorZones]
-    : derivedElevatorZones
+    ? [...input.forbiddenZones, ...derivedForbiddenZones]
+    : derivedForbiddenZones
 
   // Beam axes come from the caller (read off the drawing's grid), never from the shaft boxes: an axis
   // at `minY-1000` is a polyline vertex that follows no structural element, yet it used to be drawn
@@ -73,10 +99,11 @@ export function planHighwayFireAlarm(input: HighwayFireAlarmPlannerInput): FireA
   const beamYHighways = input.beamYHighways ?? []
   const beamXHighways = input.beamXHighways ?? []
 
-  // Generate compliant sensor layout with all elevator shafts registered for exclusion
+  // Generate compliant sensor layout with all forbidden zones registered for exclusion
   const layout = generateFireAlarmLayout({
     ...input,
-    elevatorShafts: allElevatorShafts
+    elevatorShafts: elevatorShaftsForLayout,
+    forbiddenZones
   })
   const routes: FireAlarmRouteResult[] = []
   const cadOperations: CadOperation[] = []

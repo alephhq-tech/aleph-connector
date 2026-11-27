@@ -412,3 +412,26 @@ describe('entity.erase ownership protection', () => {
     expect(remainingHandles).toContain(cadAiEnt.entity.handle)
   })
 })
+
+describe('entity.trace_boundary', () => {
+  test('dispatches point to EntityTraceBoundary RPC', async () => {
+    const spy = new SpyBridgeClient()
+    const handler = entityHandler(spy)
+    const result = (await handler(
+      {
+        operation: 'trace_boundary',
+        point: [15000, 112000]
+      },
+      { mcpReq: { id: 201 } }
+    )) as { content?: { text?: string }[] }
+
+    expect(spy.calls).toHaveLength(1)
+    expect(spy.calls[0]!.method).toBe(RpcMethod.EntityTraceBoundary)
+    expect(spy.calls[0]!.params).toEqual({
+      point: { x: 15000, y: 112000, z: 0 },
+      detectIslands: undefined,
+      documentName: undefined
+    })
+    expect(result.content?.[0]?.text).toBeDefined()
+  })
+})

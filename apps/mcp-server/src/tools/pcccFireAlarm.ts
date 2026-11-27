@@ -232,6 +232,17 @@ const previewInput = z.object({
     .array(z.array(point2d).min(3))
     .optional()
     .describe('Forbidden elevator shaft voids.'),
+  forbiddenZones: z
+    .array(
+      z.object({
+        minX: z.number(),
+        minY: z.number(),
+        maxX: z.number(),
+        maxY: z.number()
+      })
+    )
+    .optional()
+    .describe('Forbidden bounding boxes that wiring and placement must never cross.'),
   elevatorPickPoints: z
     .array(point2d)
     .optional()
@@ -1221,6 +1232,9 @@ export function registerPcccFireAlarmTools(
           // room, caller-supplied (and region-checked) when it drew one.
           rooms: plannedRooms,
           ...(elevatorShafts.length > 0 && { elevatorShafts }),
+          ...(input.forbiddenZones && input.forbiddenZones.length > 0 && {
+            forbiddenZones: input.forbiddenZones
+          }),
           ...(effectiveJunctionBoxLocation && {
             junctionBoxLocation: effectiveJunctionBoxLocation
           }),

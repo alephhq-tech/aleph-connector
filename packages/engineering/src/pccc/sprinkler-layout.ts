@@ -253,10 +253,27 @@ export function generateSprinklerLayout(input: SprinklerLayoutInput): SprinklerL
   let cols = effectiveWidthMm <= 0 ? 1 : Math.ceil(effectiveWidthMm / maxSpacing) + 1
   let rows = effectiveLengthMm <= 0 ? 1 : Math.ceil(effectiveLengthMm / maxSpacing) + 1
 
+  function countSurvivingHeads(cCount: number, rCount: number): number {
+    const spX = cCount > 1 ? effectiveWidthMm / (cCount - 1) : 0
+    const spY = rCount > 1 ? effectiveLengthMm / (rCount - 1) : 0
+    let count = 0
+    for (let r = 0; r < rCount; r++) {
+      const y = rCount === 1 ? minY + roomLength / 2 : minY + wallClearanceMm + r * spY
+      for (let c = 0; c < cCount; c++) {
+        const x = cCount === 1 ? minX + roomWidth / 2 : minX + wallClearanceMm + c * spX
+        if (pointInPolygon([x, y], input.roomBoundary, excluded)) {
+          count++
+        }
+      }
+    }
+    return count
+  }
+
   // Satisfy both max spacing AND maximum coverage area per head (TCVN 7336 Table 1),
   // sized against the protected area the polygon actually leaves us.
   const minRequiredHeads = Math.ceil(protectedAreaM2 / maxAreaPerHeadM2)
-  while (cols * rows < minRequiredHeads) {
+  let maxIters = 50
+  while (countSurvivingHeads(cols, rows) < minRequiredHeads && maxIters-- > 0) {
     const spacingX = cols > 1 ? effectiveWidthMm / (cols - 1) : effectiveWidthMm
     const spacingY = rows > 1 ? effectiveLengthMm / (rows - 1) : effectiveLengthMm
     if (spacingX >= spacingY) {

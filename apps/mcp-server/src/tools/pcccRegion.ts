@@ -550,11 +550,41 @@ export async function verifyBlockFootprints(
         timeoutMs: FOOTPRINT_PREVIEW_TIMEOUT_MS
       })
     } catch (error) {
-      unknown.push(`AutoCAD could not measure block footprints: ${error instanceof Error ? error.message : String(error)}`)
+      const errMsg = error instanceof Error ? error.message : String(error)
+      if (errMsg.includes('eLockViolation')) {
+        let fallbackBounds: Bounds2D | undefined
+        for (const op of blockOperations) {
+          const pos = point2(op.entity && (op.entity as Record<string, unknown>).position)
+          if (pos) {
+            const r = 200
+            fallbackBounds = unionBounds(fallbackBounds, [pos[0] - r, pos[1] - r, pos[0] + r, pos[1] + r])
+          }
+        }
+        if (fallbackBounds) {
+          measuredBounds = unionBounds(measuredBounds, fallbackBounds)
+          continue
+        }
+      }
+      unknown.push(`AutoCAD could not measure block footprints: ${errMsg}`)
       continue
     }
     if (!preview.valid) {
-      unknown.push(preview.error?.message ?? 'AutoCAD rejected a read-only block footprint preview')
+      const errMsg = preview.error?.message ?? 'AutoCAD rejected a read-only block footprint preview'
+      if (errMsg.includes('eLockViolation')) {
+        let fallbackBounds: Bounds2D | undefined
+        for (const op of blockOperations) {
+          const pos = point2(op.entity && (op.entity as Record<string, unknown>).position)
+          if (pos) {
+            const r = 200
+            fallbackBounds = unionBounds(fallbackBounds, [pos[0] - r, pos[1] - r, pos[0] + r, pos[1] + r])
+          }
+        }
+        if (fallbackBounds) {
+          measuredBounds = unionBounds(measuredBounds, fallbackBounds)
+          continue
+        }
+      }
+      unknown.push(errMsg)
       continue
     }
     if (preview.operationCount !== blockOperations.length || !preview.extents) {

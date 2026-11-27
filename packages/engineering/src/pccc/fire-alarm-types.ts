@@ -71,6 +71,8 @@ export interface FireAlarmLayoutInput {
   }>
   wallObstacles?: Point2D[][]
   elevatorShafts?: Point2D[][]
+  /** Bounding boxes of forbidden zones (shafts, stairwells, ramps) that devices and wires must avoid */
+  forbiddenZones?: Array<{ minX: number; minY: number; maxX: number; maxY: number }>
   maxSmokeSpacingMm?: number
   maxHeatSpacingMm?: number
   /**

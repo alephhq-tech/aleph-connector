@@ -6,10 +6,15 @@ import type { McpServer } from '@modelcontextprotocol/server'
 const URI_ROOT = 'autocad://guide/pccc/'
 
 const PCCC_SKILL_NAMES = [
+  'aleph-pccc-master',
   'pccc-fire-alarm-design',
   'pccc-sprinkler-design',
   'pccc-pipe-routing',
-  'pccc-hydraulic-calculation'
+  'pccc-hydraulic-calculation',
+  'pccc-hydrant-cabinet',
+  'pccc-emergency-exit',
+  'pccc-portable-extinguishers',
+  'pccc-bachkhoa-cad-standards'
 ] as const
 
 export interface PcccGuideFile {
@@ -85,10 +90,48 @@ export function loadPcccGuide(): PcccGuide {
       return [
         { slug: file.skill, file },
         { slug: short, file },
-        ...(file.skill === 'pccc-fire-alarm-design'
+        ...(file.skill === 'aleph-pccc-master'
           ? [
               { slug: 'pccc', file },
-              { slug: 'fire-alarm', file }
+              { slug: 'aleph-pccc', file },
+              { slug: 'master', file }
+            ]
+          : []),
+        ...(file.skill === 'pccc-fire-alarm-design'
+          ? [
+              { slug: 'fire-alarm', file },
+              { slug: 'bao-chay', file }
+            ]
+          : []),
+        ...(file.skill === 'pccc-sprinkler-design'
+          ? [
+              { slug: 'sprinkler', file },
+              { slug: 'chua-chay', file }
+            ]
+          : []),
+        ...(file.skill === 'pccc-hydrant-cabinet'
+          ? [
+              { slug: 'hydrant', file },
+              { slug: 'vach-tuong', file }
+            ]
+          : []),
+        ...(file.skill === 'pccc-emergency-exit'
+          ? [
+              { slug: 'exit', file },
+              { slug: 'cssc', file },
+              { slug: 'chieu-sang-su-co', file }
+            ]
+          : []),
+        ...(file.skill === 'pccc-portable-extinguishers'
+          ? [
+              { slug: 'extinguisher', file },
+              { slug: 'binh-chua-chay', file }
+            ]
+          : []),
+        ...(file.skill === 'pccc-bachkhoa-cad-standards'
+          ? [
+              { slug: 'bach-khoa', file },
+              { slug: 'cad-standards', file }
             ]
           : [])
       ]
@@ -97,7 +140,7 @@ export function loadPcccGuide(): PcccGuide {
   return {
     files,
     instructionsLine:
-      'For Vietnamese fire-alarm (PCCC) design: read autocad://guide/pccc/pccc-fire-alarm-design/SKILL.md (guide topic `pccc` / `pccc-fire-alarm-design`) and call `pccc_fire_alarm_overlay` — never freehand detectors; finish with a device BOM/schedule.',
+      'For Vietnamese fire-protection (PCCC) design: read autocad://guide/pccc/aleph-pccc-master/SKILL.md (guide topic `pccc` / `aleph-pccc`) and call `pccc_fire_alarm_overlay` or `pccc_overlay` — strictly follow TCVN 7568-14:2025, TCVN 7336:2021, and CTY PCCC BÁCH KHOA standards with zero text collisions and professional legends.',
     topics
   }
 }

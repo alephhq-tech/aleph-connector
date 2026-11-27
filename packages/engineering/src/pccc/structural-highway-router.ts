@@ -28,30 +28,54 @@ export interface StructuralGridHighwayInput {
   insUnits?: DrawingUnits
 }
 
-function segmentCrossesBox(
+export function segmentCrossesBox(
   p1: Point2D,
   p2: Point2D,
   box: { minX: number; minY: number; maxX: number; maxY: number }
 ): boolean {
+  // 1. If either endpoint is strictly inside the box (or on boundary within 1e-4), it intersects
+  const inBox = (p: Point2D) =>
+    p[0] >= box.minX - 1e-4 &&
+    p[0] <= box.maxX + 1e-4 &&
+    p[1] >= box.minY - 1e-4 &&
+    p[1] <= box.maxY + 1e-4
+  if (inBox(p1) || inBox(p2)) return true
+
+  // 2. Fast bounding box rejection
   const minX = Math.min(p1[0], p2[0])
   const maxX = Math.max(p1[0], p2[0])
   const minY = Math.min(p1[1], p2[1])
   const maxY = Math.max(p1[1], p2[1])
-
-  // Overlap test
   if (maxX < box.minX || minX > box.maxX || maxY < box.minY || minY > box.maxY) return false
 
-  // Horizontal segment
-  if (p1[1] === p2[1]) {
-    const y = p1[1]
-    if (y >= box.minY && y <= box.maxY && maxX >= box.minX && minX <= box.maxX) return true
+  // 3. Liang-Barsky parametric line clipping
+  const dx = p2[0] - p1[0]
+  const dy = p2[1] - p1[1]
+  let t0 = 0.0
+  let t1 = 1.0
+
+  const clip = (p: number, q: number): boolean => {
+    if (Math.abs(p) < 1e-9) {
+      if (q < 0) return false // Parallel and outside
+      return true // Parallel and inside
+    }
+    const t = q / p
+    if (p < 0) {
+      if (t > t1) return false
+      if (t > t0) t0 = t
+    } else {
+      if (t < t0) return false
+      if (t < t1) t1 = t
+    }
+    return true
   }
-  // Vertical segment
-  if (p1[0] === p2[0]) {
-    const x = p1[0]
-    if (x >= box.minX && x <= box.maxX && maxY >= box.minY && minY <= box.maxY) return true
-  }
-  return false
+
+  if (!clip(-dx, p1[0] - box.minX)) return false
+  if (!clip(dx, box.maxX - p1[0])) return false
+  if (!clip(-dy, p1[1] - box.minY)) return false
+  if (!clip(dy, box.maxY - p1[1])) return false
+
+  return t0 <= t1
 }
 
 /**
@@ -77,17 +101,39 @@ export function routeViaBeamHighway(
 ): Point2D[] | null {
   // Practical Engineering Rule 1: Direct collinear alignment (same horizontal beam line or row)
   if (Math.abs(start[1] - end[1]) < 800 * unitsPerMm) {
-    const directBlocked = forbiddenZones.some((fz) => segmentCrossesBox(start, end, fz))
-    if (!directBlocked) {
-      return [start, end]
+    if (Math.abs(start[1] - end[1]) < 1e-4) {
+      const directBlocked = forbiddenZones.some((fz) => segmentCrossesBox(start, end, fz))
+      if (!directBlocked) {
+        return [start, end]
+      }
+    } else {
+      // Orthogonal step to avoid slanted diagonal wires
+      const mid: Point2D = [end[0], start[1]]
+      const blocked = forbiddenZones.some(
+        (fz) => segmentCrossesBox(start, mid, fz) || segmentCrossesBox(mid, end, fz)
+      )
+      if (!blocked) {
+        return [start, mid, end]
+      }
     }
   }
 
   // Practical Engineering Rule 2: Direct vertical alignment (same column line or conduit drop)
   if (Math.abs(start[0] - end[0]) < 800 * unitsPerMm) {
-    const directBlocked = forbiddenZones.some((fz) => segmentCrossesBox(start, end, fz))
-    if (!directBlocked) {
-      return [start, end]
+    if (Math.abs(start[0] - end[0]) < 1e-4) {
+      const directBlocked = forbiddenZones.some((fz) => segmentCrossesBox(start, end, fz))
+      if (!directBlocked) {
+        return [start, end]
+      }
+    } else {
+      // Orthogonal step to avoid slanted diagonal wires
+      const mid: Point2D = [start[0], end[1]]
+      const blocked = forbiddenZones.some(
+        (fz) => segmentCrossesBox(start, mid, fz) || segmentCrossesBox(mid, end, fz)
+      )
+      if (!blocked) {
+        return [start, mid, end]
+      }
     }
   }
 

@@ -12,6 +12,7 @@ import {
 } from '../src/index'
 import { generateFireAlarmLayout, classifyRoomSensor } from '../src/pccc/fire-alarm-layout.js'
 import { planHighwayFireAlarm } from '../src/pccc/fire-alarm-planner.js'
+import { segmentCrossesBox } from '../src/pccc/structural-highway-router.js'
 
 describe('PCCC Fire Alarm Design & Routing (TCVN 7568-14:2025)', () => {
   const basementGarage: FireAlarmRoomInput = {
@@ -803,5 +804,81 @@ describe('PCCC Fire Alarm Design & Routing (TCVN 7568-14:2025)', () => {
       layout.violations.some((v) => v.includes('JUNCTION_BOX_TOO_CLOSE_TO_ELEVATOR_SHAFT'))
     ).toBe(true)
     expect(layout.devices.some((d) => d.type === 'JUNCTION_BOX')).toBe(false)
+  })
+
+  it('segmentCrossesBox correctly detects diagonal crossings, containment, and boundary touches', () => {
+    const box = { minX: 10, minY: 10, maxX: 20, maxY: 20 }
+
+    // Strictly diagonal crossing through center
+    expect(segmentCrossesBox([5, 5], [25, 25], box)).toBe(true)
+    // Diagonal crossing corner
+    expect(segmentCrossesBox([8, 15], [15, 8], box)).toBe(true)
+    // Oblique near-horizontal segment (Y differs by 1)
+    expect(segmentCrossesBox([5, 14], [25, 15], box)).toBe(true)
+    // Oblique near-vertical segment (X differs by 1)
+    expect(segmentCrossesBox([14, 5], [15, 25], box)).toBe(true)
+    // Endpoint inside
+    expect(segmentCrossesBox([15, 15], [30, 30], box)).toBe(true)
+    // Segment completely outside
+    expect(segmentCrossesBox([0, 0], [5, 5], box)).toBe(false)
+    expect(segmentCrossesBox([5, 25], [25, 25], box)).toBe(false)
+  })
+
+  it('automatically excludes stairwells, ramps, and elevator cores from wire paths and layout', () => {
+    const stairwellRoom: FireAlarmRoomInput = {
+      id: 'room_stair',
+      name: 'Thang bộ N1',
+      usage: 'stairwell',
+      boundary: [
+        [12000, 105000],
+        [15000, 105000],
+        [15000, 108000],
+        [12000, 108000]
+      ]
+    }
+    const rampRoom: FireAlarmRoomInput = {
+      id: 'room_ramp',
+      name: 'Ram dốc xe',
+      usage: 'parking',
+      boundary: [
+        [20000, 105000],
+        [23000, 105000],
+        [23000, 108000],
+        [20000, 108000]
+      ]
+    }
+
+    const plan = planHighwayFireAlarm({
+      insUnits: 'mm',
+      rooms: [basementGarage, stairwellRoom, rampRoom],
+      junctionBoxLocation: [11000, 101000],
+      blockNames: LIBRARY.blocks
+    })
+
+    expect(plan.status).toBe('PASS')
+
+    // No device placed in stairwell or ramp
+    for (const d of plan.layout.devices) {
+      const inStair = d.x >= 12000 && d.x <= 15000 && d.y >= 105000 && d.y <= 108000
+      const inRamp = d.x >= 20000 && d.x <= 23000 && d.y >= 105000 && d.y <= 108000
+      expect(inStair).toBe(false)
+      expect(inRamp).toBe(false)
+    }
+
+    // No wire segment crosses through stairwell or ramp
+    for (const route of plan.routes) {
+      for (const seg of route.segments) {
+        for (let i = 0; i < seg.points.length - 1; i++) {
+          const p1 = seg.points[i]
+          const p2 = seg.points[i + 1]
+          expect(
+            segmentCrossesBox(p1, p2, { minX: 12000, minY: 105000, maxX: 15000, maxY: 108000 })
+          ).toBe(false)
+          expect(
+            segmentCrossesBox(p1, p2, { minX: 20000, minY: 105000, maxX: 23000, maxY: 108000 })
+          ).toBe(false)
+        }
+      }
+    }
   })
 })

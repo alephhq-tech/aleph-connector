@@ -50,6 +50,13 @@ export function registerBlockTools(server: McpServer, baseBridge: BridgeClient):
       documentName,
       instanceId,
       idempotencyKey
+    }),
+    z.object({
+      operation: z.literal('ensure_definition'),
+      blockName: z.string().min(1),
+      entities: z.array(z.record(z.string(), z.unknown())),
+      documentName,
+      instanceId
     })
   ])
   server.registerTool(
@@ -146,6 +153,15 @@ export function registerBlockTools(server: McpServer, baseBridge: BridgeClient):
               },
               { signal: ctx.mcpReq.signal }
             )
+          )
+        }
+        case 'ensure_definition': {
+          return textResult(
+            await bridge.request(RpcMethod.BlockEnsureDefinition, {
+              blockName: input.blockName,
+              entities: input.entities as any,
+              documentName: input.documentName
+            })
           )
         }
       }
