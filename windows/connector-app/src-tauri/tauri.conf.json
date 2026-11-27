@@ -38,7 +38,9 @@
     "windows": { "webviewInstallMode": { "type": "offlineInstaller", "silent": true }, "allowDowngrades": false },
     "resources": ["binaries/aleph-mcp.exe", "binaries/aleph-mcp-stdio.exe", "binaries/skills/**/*", "binaries/client/**/*", "binaries/agent-pack/**/*"],
     "icon": [
+      "icons/icon.png",
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",

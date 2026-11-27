@@ -143,6 +143,47 @@ fn manifest_url() -> &'static str {
     DEFAULT_MANIFEST_URL
 }
 
+fn evaluate_manifest(manifest: &ReleaseManifest, current: &str) -> UpdateCheck {
+    let available = is_newer(&manifest.latest, current);
+    UpdateCheck {
+        update_available: available,
+        channel_available: true,
+        latest: Some(manifest.latest.clone()),
+        current: current.to_string(),
+        package_url: Some(manifest.package_url.clone()),
+        message: if available {
+            format!(
+                "Có bản cập nhật Connector {} → {}. Sau khi cập nhật, cài lại Bridge và plugin kèm theo.",
+                current, manifest.latest
+            )
+        } else {
+            format!("Đã cập nhật ({}).", manifest.latest)
+        },
+    }
+}
+
+fn empty_check(current: String) -> UpdateCheck {
+    UpdateCheck {
+        update_available: false,
+        channel_available: false,
+        latest: None,
+        current,
+        package_url: None,
+        message: "Kênh cập nhật chưa có bản phát hành nào.".into(),
+    }
+}
+
+pub fn check_updates() -> Result<UpdateCheck, String> {
+    let status = integration_status();
+    let current = effective_current_version(&status);
+    let manifest = match fetch_manifest()? {
+        Some(manifest) => manifest,
+        None => return Ok(empty_check(current)),
+    };
+    validate_package_url(&manifest.package_url, &manifest.latest)?;
+    Ok(evaluate_manifest(&manifest, &current))
+}
+
 fn download_limited(url: &str, max_bytes: u64) -> Result<Option<Vec<u8>>, String> {
     use std::io::Read;
     let agent = ureq::AgentBuilder::new()
@@ -175,40 +216,6 @@ fn fetch_manifest() -> Result<Option<ReleaseManifest>, String> {
 
 fn effective_current_version(_status: &IntegrationStatus) -> String {
     connector_version()
-}
-
-pub fn check_updates() -> Result<UpdateCheck, String> {
-    let status = integration_status();
-    let current = effective_current_version(&status);
-    let manifest = match fetch_manifest()? {
-        Some(manifest) => manifest,
-        None => return Ok(UpdateCheck {
-            update_available: false,
-            channel_available: false,
-            latest: None,
-            current,
-            package_url: None,
-            message: "Update channel has no published release yet.".into(),
-        }),
-    };
-    validate_package_url(&manifest.package_url, &manifest.latest)?;
-    let available = is_newer(&manifest.latest, &current);
-    Ok(UpdateCheck {
-        update_available: available,
-        channel_available: true,
-        latest: Some(manifest.latest.clone()),
-        current,
-        package_url: Some(manifest.package_url),
-        message: if available {
-            format!(
-                "Connector update available: {} → {}. Reinstall the bundled Bridge and plugin after updating.",
-                effective_current_version(&status),
-                manifest.latest
-            )
-        } else {
-            format!("Up to date ({}).", manifest.latest)
-        },
-    })
 }
 
 #[cfg(test)]
@@ -259,10 +266,85 @@ mod security_tests {
 
 }
 
+#[cfg(test)]
+mod check_tests {
+    use super::*;
+
+    fn manifest(latest: &str) -> ReleaseManifest {
+        ReleaseManifest {
+            latest: latest.into(),
+            minimum_bridge_version: "1.0.0".into(),
+            package_url: format!(
+                "https://github.com/alephhq-tech/aleph-connector/releases/download/v{latest}/connector-update.zip"
+            ),
+            sha256: "0".repeat(64),
+            signature: "AAAA".into(),
+        }
+    }
+
+    #[test]
+    fn reports_update_when_release_is_newer() {
+        let check = evaluate_manifest(&manifest("1.2.3"), "1.2.2");
+        assert!(check.update_available);
+        assert!(check.channel_available);
+        assert_eq!(check.latest.as_deref(), Some("1.2.3"));
+        assert_eq!(check.current, "1.2.2");
+        assert_eq!(
+            check.package_url.as_deref(),
+            Some("https://github.com/alephhq-tech/aleph-connector/releases/download/v1.2.3/connector-update.zip")
+        );
+        assert!(check.message.contains("1.2.2"));
+        assert!(check.message.contains("1.2.3"));
+    }
+
+    #[test]
+    fn reports_up_to_date_when_release_matches_or_is_older() {
+        let same = evaluate_manifest(&manifest("1.2.3"), "1.2.3");
+        assert!(!same.update_available);
+        assert!(same.channel_available);
+        assert!(same.message.contains("Đã cập nhật"));
+        let older = evaluate_manifest(&manifest("1.2.2"), "1.2.3");
+        assert!(!older.update_available);
+        assert!(older.channel_available);
+    }
+
+    #[test]
+    fn empty_channel_has_no_latest_or_url() {
+        let check = empty_check("1.2.2".to_string());
+        assert!(!check.update_available);
+        assert!(!check.channel_available);
+        assert_eq!(check.latest, None);
+        assert_eq!(check.current, "1.2.2");
+        assert_eq!(check.package_url, None);
+        assert!(check.message.contains("Kênh cập nhật"));
+    }
+
+    #[test]
+    fn is_newer_ignores_invalid_manifests() {
+        assert!(!is_newer("not-a-version", "1.2.2"));
+        assert!(!is_newer("1.2.3", "not-a-version"));
+        assert!(!is_newer("1.2.2", "1.2.3"));
+        assert!(is_newer("1.2.3", "1.2.2"));
+    }
+
+    #[test]
+    fn manifest_from_json_round_trips_and_validates_url() {
+        let json = r#"{"latest":"1.2.3","minimumBridgeVersion":"1.0.0","packageUrl":"https://github.com/alephhq-tech/aleph-connector/releases/download/v1.2.3/connector-update.zip","sha256":"0","signature":"AAAA"}"#;
+        let parsed: ReleaseManifest = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.latest, "1.2.3");
+        assert_eq!(parsed.package_url, "https://github.com/alephhq-tech/aleph-connector/releases/download/v1.2.3/connector-update.zip");
+        validate_package_url(&parsed.package_url, &parsed.latest).unwrap();
+        let bad = r#"{"latest":"1.2.3","minimumBridgeVersion":"1.0.0","packageUrl":"https://example.com/connector-update.zip","sha256":"0","signature":"AAAA"}"#;
+        let bad: ReleaseManifest = serde_json::from_str(bad).unwrap();
+        assert!(validate_package_url(&bad.package_url, &bad.latest).is_err());
+    }
+
+}
+
 pub fn prepare_update() -> Result<PathBuf, String> {
-    let manifest = fetch_manifest()?.ok_or("No release is currently available")?;
+    let manifest = fetch_manifest()?.ok_or("Hiện chưa có bản phát hành nào.")?;
     if !is_newer(&manifest.latest, &connector_version()) {
-        return Err("No newer Connector release is available".into());
+        return Err("Không có bản phát hành Connector mới hơn.".into());
     }
     let bytes = download_limited(&manifest.package_url, crate::update_package::MAX_RELEASE_BYTES)?
         .ok_or("Release archive not found")?;
