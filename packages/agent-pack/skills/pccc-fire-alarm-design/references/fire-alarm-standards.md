@@ -46,6 +46,16 @@ detector. The controlling figure is the reach: every point of the protected ceil
 - Ngưỡng kích hoạt của đầu báo cố định/kep phải cao hơn nhiệt độ tối đa của môi trường tại vị trí lắp
   ít nhất $20\text{ °C}$ (4.1.5.6).
 - Không dùng đầu báo nhiệt gia tăng/kep trong môi trường biến động nhiệt $>5\text{ °C/min}$ (4.1.5.5).
+- Beam/dầm sâu $>0{,}3\text{ m}$: khoảng cách giữa các đầu báo giảm **30%** (5.9.2.1.5 — áp dụng cả smoke
+  và heat) và mỗi ô giữa các dầm sâu $>0{,}3\text{ m}$ được coi là phòng riêng, phải bảo vệ riêng.
+
+## 3b. Smoke Detector Additional Rules (Điều 5.9.1.1 - TCVN 7568-14:2025)
+
+- Trần $>2\text{ m}$ + cấu kiện dầm sâu $>0{,}3\text{ m}$: nếu diện tích giữa các dầm $\ge 4\text{ m}^2$ —
+  lắp ≥1 đầu báo trong mỗi ô. Trần $<2\text{ m}$ + cấu kiện $\le 0{,}3\text{ m}$: spacing $\le 15\text{ m}$,
+  hàng ngoài tường $\le 10{,}2\text{ m}$.
+- Đầu báo cách cửa cấp khí $\ge 0{,}4\text{ m}$ (5.9.1.1.4 b); cách cánh quạt $\ge 0{,}4\text{ m}$ (5.9.1.1.4 c).
+- Cảm biến đến trần: $0{,}025\text{–}0{,}3\text{ m}$ (trần $<4\text{ m}$), $\le 0{,}6\text{ m}$ (trần $4\text{–}15\text{ m}$) (5.9.1.1.1).
 
 ## 4. Manual Call Point (MCP) & Alarm Combination Units (Điều 7)
 
@@ -61,4 +71,4 @@ detector. The controlling figure is the reach: every point of the protected ceil
 1. **Topology**: Daisy-chain (nối tiếp thiết bị), không tạo nhánh chữ T (T-Tap) trên mạch thường.
 2. **End-of-Line (EOL)**: Đặt ở thiết bị cuối cùng của mạch Zone.
 3. **Loop Resistance**: Điện trở thuần của dây dẫn mạch tín hiệu không vượt quá thông số cho phép của tủ trung tâm (thường $\le 50\text{ }\Omega$).
-4. **Cáp và ống bảo vệ**: Cáp tín hiệu $2 \times 1.5\text{ mm}^2$ chống cháy/chống nhiễu luồn trong ống PVC chống cháy D20 hoặc ống thép luồn dây EMT, đi vuông góc bám sát hệ dầm trần.
+4. **Cáp và ống bảo vệ**: Cáp tín hiệu loop chống cháy $2\times1.0\text{ mm}^2$ luồn trong ống PVC chống cháy D20 (hoặc ống thép luồn dây EMT), đi vuông góc bám sát hệ dầm trần. Cáp nguồn cấp chuông còi/module: $2\times1.5\text{ mm}^2$ chống cháy.

@@ -16,8 +16,13 @@ Theo TCVN 7336:2021 Điều 5 và Bảng 1, các công trình phổ biến đư�
 | Nhóm nguy cơ cháy | Loại công trình điển hình | Cường độ phun tối thiểu ($I$) | Diện tích bảo vệ tối đa 1 đầu phun ($S$) | Khoảng cách tối đa giữa 2 đầu phun | Thời gian phun tính toán |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Nhóm 1 (Nguy cơ thấp)** | Văn phòng, khách sạn, trường học, bệnh viện | $0.08\text{ l}/(\text{s}\cdot\text{m}^2)$ | $\le 12.0\text{ m}^2$ | $\le 4.0\text{ m}$ | $30\text{ phút}$ |
-| **Nhóm 2 (Nguy cơ trung bình)** | **Gara ô tô ngầm**, trung tâm thương mại, nhà xưởng dệt may | $0.12\text{ l}/(\text{s}\cdot\text{m}^2)$ | $\le 9.0\text{ m}^2$ | $\le 3.0\text{ m} - 3.6\text{ m}$ | $60\text{ phút}$ |
-| **Nhóm 3 (Nguy cơ cao)** | Kho bao bì giấy, kho hóa chất, xưởng sơn | $0.24\text{ l}/(\text{s}\cdot\text{m}^2)$ | $\le 9.0\text{ m}^2$ | $\le 3.0\text{ m}$ | $60\text{ phút}$ |
+| **Nhóm 2 (Nguy cơ trung bình)** | **Gara ô tô ngầm**, trung tâm thương mại, nhà xưởng dệt may | $0.12\text{ l}/(\text{s}\cdot\text{m}^2)$ | $\le 9.0\text{ m}^2$ | $\le 4.0\text{ m}$ | $60\text{ phút}$ |
+| **Nhóm 3 (Nguy cơ cao)** | Kho bao bì giấy, kho hóa chất, xưởng sơn | $0.24\text{ l}/(\text{s}\cdot\text{m}^2)$ | $\le 9.0\text{ m}^2$ | $\le 4.0\text{ m}$ | $60\text{ phút}$ |
+
+*TCVN 7336:2021 Table 1 — all Groups 1–3 share the 4.0 m max head-to-head spacing; the
+differences are density (I), calculated area (S = 60/120/120 m²), coverage per head (12.0/9.0/9.0 m²)
+and discharge time. Min head-to-head spacing 1.5 m; head-to-wall ≤ 1.2 m (unprotected wall);
+ceiling-deflector clearance 0.08–0.30 m; max protected height 20 m.*
 
 ---
 

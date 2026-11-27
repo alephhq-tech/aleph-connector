@@ -2,12 +2,17 @@
   "id": "aleph-connector",
   "name": "Aleph Connector",
   "version": "0.1.0",
-  "description": "AutoCAD drafting + Vietnamese PCCC (fire alarm) skills for agent clients via Aleph MCP.",
+  "description": "AutoCAD drafting + Vietnamese PCCC (fire alarm, sprinkler, hydrant, emergency exit, extinguishers, CAD standards) skills for agent clients via Aleph MCP.",
   "skills": [
     "autocad-drafting",
+    "aleph-pccc-master",
+    "pccc-bachkhoa-cad-standards",
     "pccc-fire-alarm-design",
     "pccc-sprinkler-design",
     "pccc-pipe-routing",
-    "pccc-hydraulic-calculation"
+    "pccc-hydraulic-calculation",
+    "pccc-hydrant-cabinet",
+    "pccc-emergency-exit",
+    "pccc-portable-extinguishers"
   ]
 }

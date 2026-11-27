@@ -10,7 +10,7 @@
 
 ## Case 2: Complete Input Ready for Drafting
 
-- **Scenario**: Room 20m x 15m, ceiling 4m, hazard group 1, TCVN 7336 spacing 3.5m.
+- **Scenario**: Room 20m x 15m, ceiling 4m, hazard group 1, TCVN 7336 spacing 4.0m.
 - **Expected Outcome**:
   - Plan status: `ready_for_drafting`.
   - Stages ordered: Inspection -> Grid Placement -> Pipe Routing -> Verification.

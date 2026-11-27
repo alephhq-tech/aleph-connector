@@ -30,6 +30,26 @@ const copies: { from: string; to: string }[] = [
   {
     from: join(repoRoot, 'packages/engineering/skills/pccc-hydraulic-calculation'),
     to: join(skillsOut, 'pccc-hydraulic-calculation')
+  },
+  {
+    from: join(repoRoot, 'packages/engineering/skills/aleph-pccc-master'),
+    to: join(skillsOut, 'aleph-pccc-master')
+  },
+  {
+    from: join(repoRoot, 'packages/engineering/skills/pccc-bachkhoa-cad-standards'),
+    to: join(skillsOut, 'pccc-bachkhoa-cad-standards')
+  },
+  {
+    from: join(repoRoot, 'packages/engineering/skills/pccc-hydrant-cabinet'),
+    to: join(skillsOut, 'pccc-hydrant-cabinet')
+  },
+  {
+    from: join(repoRoot, 'packages/engineering/skills/pccc-emergency-exit'),
+    to: join(skillsOut, 'pccc-emergency-exit')
+  },
+  {
+    from: join(repoRoot, 'packages/engineering/skills/pccc-portable-extinguishers'),
+    to: join(skillsOut, 'pccc-portable-extinguishers')
   }
 ]
 

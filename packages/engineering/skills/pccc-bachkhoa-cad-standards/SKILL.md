@@ -1,6 +1,6 @@
 ---
 name: pccc-bachkhoa-cad-standards
-description: Complete CAD Drafting Standards of CTY TNHH CƠ ĐIỆN LẠNH VÀ PCCC BÁCH KHOA. Covers exact layer configurations, color mapping, linetypes, block library symbols, text typography, dimensioning styles, sheet numbering (BC-xx, CC-xx, CSSC-xx, SĐTN-xx), and Bill of Quantities (BoQ) schedules.
+description: Complete CAD Drafting Standards of CTY TNHH CƠ ĐIỆN LẠNH VÀ PCCC BÁCH KHOA. Covers exact layer configurations, color mapping, linetypes, block library symbols, text typography, dimensioning styles, sheet numbering (BC-xx báo cháy mặt bằng/trần thô, CS-xx chiếu sáng sự cố, CC-xx chữa cháy, EX-xx/EXR-xx thoát nạn, CT-xx chi tiết), and Bill of Quantities (BoQ) schedules.
 ---
 
 # QUY CHUẨN THỂ HIỆN BẢN VẼ CAD - CTY PCCC BÁCH KHOA
@@ -9,31 +9,29 @@ Tài liệu chi tiết quy định quy chuẩn bản vẽ AutoCAD của **Công 
 
 ---
 
-## 1. BẢNG MÃ BẢN VẼ HỒ SƠ THIẾT KẾ (SHEET NUMBERING)
+## 1. BẢNG MÃ BẢN VẼ HỒ SƠ THIẾT KẾ (SHEET NUMBERING — THE REAL SERIES)
 
-| STT | Ký hiệu Bản vẽ | Tên Bản vẽ | Khổ giấy | Ghi chú |
-| :---: | :---: | :--- | :---: | :--- |
-| **I** | **BÁO CHÁY TỰ ĐỘNG** | | | |
-| 1 | `BC-01` | Mặt bằng bố trí báo cháy tầng hầm | A3 | Thang tỷ lệ 1/100 |
-| 2 | `BC-02` | Mặt bằng bố trí báo cháy tầng 1 / trần mái | A3 | Thang tỷ lệ 1/100 |
-| 3 | `BC-03` | Mặt bằng bố trí báo cháy tầng điển hình | A3 | Thang tỷ lệ 1/100 |
-| 4 | `BC-04` | Sơ đồ nguyên lý hệ thống báo cháy | A3 | Sơ đồ khối / Riser |
-| **II** | **CHIẾU SÁNG SỰ CỐ & THOÁT NẠN** | | | |
-| 5 | `CSSC-01` | Mặt bằng đèn CSSC & Đèn EXIT | A3 | Đèn sự cố, đèn chỉ hướng |
-| 6 | `CSSC-02` | Sơ đồ nguyên lý đèn CSSC & EXIT | A3 | Nguồn cấp tủ CSSC |
-| 7 | `CSSC-03` | Chiếu sáng phương tiện chữa cháy | A3 | Chiếu sáng vị trí tủ / bình |
-| **III** | **CHỮA CHÁY SPRINKLER TỰ ĐỘNG** | | | |
-| 8 | `CC-01` | Mặt bằng bố trí đầu phun Sprinkler | A3 | Thang tỷ lệ 1/100 |
-| 9 | `CC-02` | Sơ đồ nguyên lý bố trí Sprinkler | A3 | Sơ đồ không gian / Isometric |
-| 10 | `CC-03` | Sơ đồ nguyên lý trạm bơm & cụm van PCCC | A3 | Bơm điện, diesel, bù áp |
-| **IV** | **CHỮA CHÁY VÁCH TƯỜNG** | | | |
-| 11 | `CC-04` | Mặt bằng chữa cháy vách tường | A3 | Vị trí hộp họng, lăng vòi |
-| **V** | **SƠ ĐỒ THOÁT NẠN** | | | |
-| 12 | `SĐTN-01` | Sơ đồ chỉ dẫn thoát nạn công trình | A3 | Vị trí "BẠN ĐANG Ở ĐÂY" |
-| **VI** | **CHI TIẾT LẮP ĐẶT** | | | |
-| 13 | `CT-01` | Chi tiết lắp đặt đầu phun, tủ PCCC | A3 | Chi tiết phóng to 1/20 |
-| 14 | `CT-02` | Chi tiết lắp đặt chuông còi, nút ấn | A3 | Chi tiết phóng to 1/20 |
-| 15 | `CT-03` | Chi tiết cụm van báo động Alarm Valve | A3 | Chi tiết phóng to 1/20 |
+Bộ hồ sơ PCCC thật của **CTY PCCC BÁCH KHOA** không phải một chuỗi 5 bản vẽ cố định — nó gồm
+**một chuỗi bản vẽ theo từng tầng/hạng mục**. Hai mẫu thực tế: SUNLAND 20-10-2026 (**76 bản vẽ**),
+NHÀ MÁY MAY QUẢNG HƯNG (~**70 bản vẽ**). Mỗi hạng mục bắt đầu bằng **BIA** (bìa phân cách) rồi tới
+mặt bằng từng tầng/hầm/mái, mặt cắt A-A, sơ đồ nguyên lý, chi tiết lắp đặt và bảng thống kê vật tư.
+
+| Prefix | Hạng mục | Ví dụ (SUNLAND 76 Sheet) |
+|---|---|---|
+| `BIA` / `BI A` | Bìa hồ sơ + Bìa ký + Thống kê vật tư + Danh mục bản vẽ | BIA-01..04 |
+| `BC-xx` | Báo cháy tự động — mặt bằng từng tầng/hầm/mái | BC-01 ( tầng hầm)…BC-09 (sân thượng) |
+| `BC-10..18` | Báo cháy trần thô — mặt bằng từng tầng + sơ đồ nguyên lý | BC-10…17 (trần thô) + BC-18 (sơ đồ nguyên lý) |
+| `CS-xx` | Chiếu sáng sự cố — mặt bằng từng tầng + sơ đồ nguyên lý + bảng tính nguồn điện | CS-01…09 + CS-10 (sơ đồ nguyên lý) + CS-11 (bảng tính nguồn) |
+| `CC-xx` | Chữa cháy tự động — mặt bằng từng tầng | CC-01…09 |
+| `CC-10..21` | Chữa cháy vách tường — mặt bằng từng tầng + thuyết minh + bảng tính + sơ đồ nguyên lý | CC-10…18 + CC-19 (thuyết minh) + CC-20 (bảng tính) + CC-21 (sơ đồ nguyên lý) |
+| `EX-xx` / `EXR-xx` | Chỉ dẫn thoát nạn — mặt bằng từng tầng (2 dãy) | EX-01…09 + EXR-01…07 |
+| `CT-xx` | Chi tiết lắp đặt | CT-01…06 |
+
+**Quy tắc số liệu:**
+- Số bản vẽ = (Số tầng/hầm/mái) × (số hạng mục áp dụng) + bìa/danh mục/vật tư. Không dùng chuỗi cố định BC-01…04 cho các dự án nhiều tầng.
+- Mỗi tầng phải có **một mặt bằng BC-xx riêng**; mặt bằng mái/sân thượng dùng mã tầng tiếp theo.
+- Bảng ký hiệu (legend) + Bảng ghi chú kỹ thuật + **BoQ (6 cột, xem mục 4)** đặt ở góc dưới bên phải mỗi tờ hoặc riêng tờ cuối hạng mục — không đè lên mặt bằng kiến trúc.
+- Khung tên A3 chuẩn kèm mã bản vẽ chính xác ghi trên khung (tên dự án, hạng mục, tầng, mã bản vẽ, tỷ lệ).
 
 ---
 

@@ -42,4 +42,4 @@ Hệ thống Chiếu sáng sự cố (CSSC) và Đèn chỉ dẫn thoát nạn (
 ## 3. THỂ HIỆN BẢN VẼ CAD CHUẨN BÁCH KHOA
 - Ký hiệu Block: `EMERL` (Đèn sự cố), `EX` (Đèn EXIT), `chidanthoatnan1huong` (Đèn EXIT chỉ hướng).
 - Layer đường dây: `Dây báo cháy` hoặc `DAYDIEN` (Dây chống cháy CU/FR 2x1.5mm2 luồn ống PVC D20).
-- Ký hiệu bản vẽ: `CSSC-01` (Mặt bằng bố trí đèn CSSC & EXIT), `CSSC-02` (Sơ đồ nguyên lý cấp nguồn).
+- Ký hiệu bản vẽ: `CS-xx` (Mặt bằng đèn CSSC & EXIT — CS-01…CS-09 mặt bằng từng tầng, CS-10 sơ đồ nguyên lý cấp nguồn, CS-11 bảng tính toán nguồn điện), `EX-xx` / `EXR-xx` (Chỉ dẫn thoát nạn — EX-01…EX-09 tầng, EXR-01…EXR-07).

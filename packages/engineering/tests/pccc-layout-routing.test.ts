@@ -27,15 +27,15 @@ describe('PCCC Sprinkler Layout & Pipe Routing', () => {
     expect(layout.violations.length).toBe(0)
   })
 
-  it('generates compliant regular grid for Group 2 hazard (spacing <= 3.5m)', () => {
+  it('generates compliant regular grid for Group 2 hazard (spacing <= 4.0m)', () => {
     const layout = generateSprinklerLayout({ insUnits: 'mm',
       roomBoundary,
       hazardGroup: 'Group 2'
     })
 
     expect(layout.status).toBe('PASS')
-    expect(layout.spacingXMm).toBeLessThanOrEqual(3500)
-    expect(layout.spacingYMm).toBeLessThanOrEqual(3500)
+    expect(layout.spacingXMm).toBeLessThanOrEqual(4000)
+    expect(layout.spacingYMm).toBeLessThanOrEqual(4000)
     expect(layout.headCount).toBeGreaterThan(0)
   })
 

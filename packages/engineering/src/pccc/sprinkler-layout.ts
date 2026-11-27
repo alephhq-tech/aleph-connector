@@ -132,11 +132,13 @@ interface HazardCriteria {
   maxAreaPerHeadM2: number
 }
 
-/** TCVN 7336:2021 Table 1 hazard criteria. */
+/** TCVN 7336:2021 Table 1 hazard criteria: max 4.0 m head spacing for Groups 1-3
+ * (4.0 m per the table; min head-to-head spacing of 1.5 m is enforced by the
+ * spacing math downstream, not here). */
 const HAZARD_CRITERIA: Record<string, HazardCriteria> = {
   'Group 1': { maxSpacingMm: 4000, maxAreaPerHeadM2: 12.0 },
-  'Group 2': { maxSpacingMm: 3500, maxAreaPerHeadM2: 9.0 },
-  'Group 3': { maxSpacingMm: 3000, maxAreaPerHeadM2: 9.0 }
+  'Group 2': { maxSpacingMm: 4000, maxAreaPerHeadM2: 9.0 },
+  'Group 3': { maxSpacingMm: 4000, maxAreaPerHeadM2: 9.0 }
 }
 
 /** The one shape for "nothing was measurable": no heads, no areas, and the reason why. Exported so

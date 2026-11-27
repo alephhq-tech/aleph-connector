@@ -39,6 +39,12 @@ Hệ thống Báo cháy tự động là hạng mục cốt lõi trong hồ sơ 
    - Cao độ lắp đặt: $Z = 2.2\text{ m} - 2.5\text{ m}$ so với sàn (cách trần $\ge 0.15\text{ m}$).
    - Mức áp suất âm thanh tối thiểu: $\ge 85\text{ dBA}$ tại khoảng cách $3\text{ m}$.
 
+### Cấu kiện dầm sâu > 0.3 m
+- Dầm sâu $>0.3\text{ m}$: mỗi ô giữa các dầm được coi là **phòng riêng**, phải bảo vệ riêng.
+- **Khoảng cách giữa các đầu báo giảm 30%** (5.9.2.1.5 — áp dụng cả khói lẫn nhiệt).
+- Trần $>2\text{ m}$ + cấu kiện dầm sâu $>0.3\text{ m}$: nếu diện tích giữa các dầm $\ge 4\text{ m}^2$ — lắp ≥1 đầu báo trong mỗi ô.
+- Đầu báo cách cửa cấp khí / cánh quạt ≥ 0.4 m (5.9.1.1.4 b, c); cách trần $0.025\text{–}0.3\text{ m}$ (trần <4 m), $\le 0.6\text{ m}$ (trần 4–15 m).
+
 ---
 
 ## 3. NGUYÊN TẮC ĐỊNH TUYẾN DÂY TÍN HIỆU (DAISY-CHAIN LOOP)

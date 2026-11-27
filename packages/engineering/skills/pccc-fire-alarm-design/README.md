@@ -29,4 +29,4 @@ Plugin chuyên sâu dành cho Antigravity và `aleph-connector`, trang bị cho 
 - **Tuyệt đối không đè chữ (Zero Text Collision)**: Khoảng hở an toàn với đường kích thước, cao độ và ký hiệu thiết bị.
 - **Tuyến dây/ống trực giao bám dầm**: Tuyến dây Daisy-Chain nối tiếp, né giếng thang máy và ram dốc.
 - **Bảng ký hiệu & Thống kê vật tư (BoQ)**: Khung bảng chuẩn kỹ thuật, chiều cao hàng và cột tính toán theo tỷ lệ bản vẽ.
-- **Ký hiệu bản vẽ chuẩn**: `BC-01..04`, `CC-01..04`, `CSSC-01..03`, `SĐTN-01`, `CT-01..03`.
+- **Ký hiệu bản vẽ chuẩn**: `BC-xx` mặt bằng từng tầng/hầm/mái (BC-01…BC-09 + BC-10…17 trần thô + BC-18 sơ đồ), `CS-xx` chiếu sáng sự cố (CS-01…CS-11), `CC-xx` chữa cháy tự động (CC-01…09) + vách tường (CC-10…21), `EX-xx` / `EXR-xx` chỉ dẫn thoát nạn (EX-01…09 + EXR-01…07), `CT-xx` chi tiết (CT-01…06), cộng Bìa + Bìa ký + Thống kê vật tư + Danh mục bản vẽ. Không dùng chuỗi cố định BC-01…04 cho các dự án nhiều tầng.
