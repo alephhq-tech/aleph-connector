@@ -103,6 +103,102 @@ fn ensure_port_available(port: u16) -> Result<(), String> {
         .map_err(|e| format!("Local MCP port {port} is unavailable: {e}"))
 }
 
+/// Whether a process name is the known Aleph runtime sidecar that may be reaped when it
+/// outlives the desktop app (e.g. after a hard kill). Anything else on the port is left alone.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn is_stale_sidecar_name(name: &str) -> bool {
+    let name = name.trim().to_ascii_lowercase();
+    name == "aleph-mcp" || name == "aleph-mcp.exe"
+}
+
+/// Parse one "pid|processName" line emitted by the port-owner enumeration.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_port_owner(line: &str) -> Option<(u32, String)> {
+    let mut parts = line.trim().splitn(2, '|');
+    let pid = parts.next()?.trim().parse::<u32>().ok()?;
+    let name = parts.next()?.trim().to_string();
+    if name.is_empty() {
+        return None;
+    }
+    Some((pid, name))
+}
+
+/// Kill stale `aleph-mcp.exe` processes that are still listening on `port`.
+///
+/// A hard-killed desktop app never runs `runtime::stop()`, so its sidecar keeps holding the
+/// port; the next launch would otherwise fail with "port is unavailable". Only processes
+/// whose executable is the Aleph runtime are touched — anything else on the port is left alone.
+/// Returns the PIDs that were reaped (empty when nothing matched or PowerShell is unavailable).
+fn reap_stale_sidecar(port: u16) -> Vec<u32> {
+    #[cfg(not(windows))]
+    {
+        let _ = port;
+        return Vec::new();
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let script = format!(
+            "Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object {{ $p = Get-CimInstance Win32_Process -Filter \"ProcessId=$_\" -ErrorAction SilentlyContinue; if ($p) {{ Write-Output (\"$($p.ProcessId)|$($p.ProcessName)\") }} }}"
+        );
+        let mut cmd = std::process::Command::new("powershell.exe");
+        cmd.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        let Ok(out) = cmd.output() else {
+            return Vec::new();
+        };
+        let mut reaped = Vec::new();
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            let Some((pid, name)) = parse_port_owner(line) else {
+                continue;
+            };
+            if !is_stale_sidecar_name(&name) {
+                continue;
+            }
+            let mut killer = std::process::Command::new("taskkill");
+            killer.args(["/PID", &pid.to_string(), "/F"]);
+            killer.creation_flags(CREATE_NO_WINDOW);
+            let killed = killer
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+            if killed {
+                reaped.push(pid);
+            }
+        }
+        reaped
+    }
+}
+
+/// Guarantee the runtime port is free: if it is occupied, reap any stale Aleph sidecar on it
+/// and retry. Returns the original error when the port stays occupied (or nothing can be reaped).
+fn ensure_port_available_after_reaping(port: u16) -> Result<(), String> {
+    if ensure_port_available(port).is_ok() {
+        return Ok(());
+    }
+    let reaped = reap_stale_sidecar(port);
+    if reaped.is_empty() {
+        return ensure_port_available(port);
+    }
+    eprintln!(
+        "reaped stale Aleph runtime sidecar(s) on port {port}: {}",
+        reaped
+            .iter()
+            .map(|pid| pid.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    // Give the OS a moment to release the port, then retry a bounded number of times.
+    for _ in 0..40 {
+        if ensure_port_available(port).is_ok() {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(150));
+    }
+    ensure_port_available(port)
+}
+
 fn default_port() -> u16 {
     std::env::var("MCP_AUTOCAD_PORT")
         .ok()
@@ -264,7 +360,8 @@ fn start_child(resource_dir: Option<&Path>, port: Option<u16>) -> Result<Runtime
     }
 
     let port = port.unwrap_or_else(default_port);
-    ensure_port_available(port)?;
+    // Reap a stale aleph-mcp.exe left behind by a hard-killed app, then proceed.
+    ensure_port_available_after_reaping(port)?;
     let sidecar = resolve_sidecar(resource_dir)?;
     let state = state_dir();
     std::fs::create_dir_all(&state).map_err(|e| format!("state dir: {e}"))?;
@@ -398,6 +495,98 @@ mod tests {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
         assert!(ensure_port_available(port).is_err());
+    }
+
+    #[test]
+    fn stale_sidecar_name_matches_only_aleph_runtime() {
+        assert!(is_stale_sidecar_name("aleph-mcp"));
+        assert!(is_stale_sidecar_name("aleph-mcp.exe"));
+        assert!(is_stale_sidecar_name("  ALEPH-MCP.EXE  "));
+        assert!(!is_stale_sidecar_name("notepad"));
+        assert!(!is_stale_sidecar_name("aleph-mcp-something"));
+        assert!(!is_stale_sidecar_name("bun"));
+        assert!(!is_stale_sidecar_name(""));
+    }
+
+    #[test]
+    fn port_owner_lines_parse_valid_pid_and_name() {
+        assert_eq!(
+            parse_port_owner("1234|aleph-mcp"),
+            Some((1234, "aleph-mcp".to_string()))
+        );
+        assert_eq!(
+            parse_port_owner("  18402|aleph-mcp.exe  "),
+            Some((18402, "aleph-mcp.exe".to_string()))
+        );
+        assert_eq!(parse_port_owner("not-a-pid|aleph-mcp"), None);
+        assert_eq!(parse_port_owner("1234"), None);
+        assert_eq!(parse_port_owner("1234|"), None);
+        assert_eq!(parse_port_owner(""), None);
+    }
+
+    #[test]
+    fn occupied_port_is_not_freed_by_reaping_unrelated_processes() {
+        // A listener owned by this test process (not an Aleph sidecar) must not be reaped and
+        // must keep the port unavailable.
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        assert!(ensure_port_available_after_reaping(port).is_err());
+    }
+
+    // Hard-kill simulation: the stale sidecar keeps holding the port after the app dies. The
+    // next start() must reap it and bring up a healthy runtime instead of failing.
+    #[cfg(windows)]
+    #[test]
+    fn start_reaps_stale_sidecar_left_by_hard_killed_app() {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let _lock = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("ALEPH_MCP_SIDECAR");
+        let root = std::env::temp_dir().join(format!("aleph-reap-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::env::set_var("ALEPH_LOCAL_STATE_DIR", &root);
+        std::env::set_var("ALEPH_LOCAL_IDENTITY_PATH", root.join("identity.json"));
+        let src_tauri = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let binaries = src_tauri.join("binaries");
+        let sidecar = binaries.join("aleph-mcp.exe");
+        assert!(sidecar.is_file(), "sidecar not built");
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let mut cmd = std::process::Command::new(&sidecar);
+        cmd.creation_flags(CREATE_NO_WINDOW)
+            .env("MCP_AUTOCAD_PORT", port.to_string())
+            .env("ALEPH_LOCAL_STATE_DIR", &root)
+            .env(
+                "ALEPH_DRAFTING_SKILL_DIR",
+                binaries.join("skills").join("autocad-drafting"),
+            )
+            .env(
+                "ALEPH_PCCC_SKILLS_DIR",
+                binaries.join("skills").join("engineering"),
+            );
+        let mut stale = cmd.spawn().unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while std::net::TcpStream::connect(("127.0.0.1", port)).is_err() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "stale sidecar did not bind port {port}"
+            );
+            assert!(stale.try_wait().unwrap().is_none(), "stale sidecar exited early");
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+        // Do NOT touch the stale child — emulate the hard-killed app. Next start() must reap it.
+        let result = start(Some(&src_tauri), Some(port));
+        let status = result.unwrap();
+        assert!(status.healthy);
+        assert!(
+            stale.try_wait().unwrap().is_some(),
+            "stale sidecar was not reaped"
+        );
+        stop().unwrap();
+        std::env::remove_var("ALEPH_LOCAL_STATE_DIR");
+        std::env::remove_var("ALEPH_LOCAL_IDENTITY_PATH");
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
