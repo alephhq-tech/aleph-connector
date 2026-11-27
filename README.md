@@ -44,6 +44,8 @@ Click **Install Agent Pack** to equip your agents with CAD drafting and engineer
 
 ## Architecture
 
+See [docs/workflow.md](docs/workflow.md) for the end-to-end workflow: install, runtime lifecycle, read/write path, PCCC flow, trust model, and the MCP tool surface — with no need to read the source.
+
 ```text
        ┌─────────────────────────────────────────────────────────┐
        │                 User AI Assistant                       │
