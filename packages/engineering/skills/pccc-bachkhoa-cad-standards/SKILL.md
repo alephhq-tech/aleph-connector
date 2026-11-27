@@ -33,6 +33,14 @@ mặt bằng từng tầng/hầm/mái, mặt cắt A-A, sơ đồ nguyên lý, c
 - Bảng ký hiệu (legend) + Bảng ghi chú kỹ thuật + **BoQ (6 cột, xem mục 4)** đặt ở góc dưới bên phải mỗi tờ hoặc riêng tờ cuối hạng mục — không đè lên mặt bằng kiến trúc.
 - Khung tên A3 chuẩn kèm mã bản vẽ chính xác ghi trên khung (tên dự án, hạng mục, tầng, mã bản vẽ, tỷ lệ).
 
+### 1.1 BẢNG DANH MỤC BẢN VẼ (index sheet) — vẽ bằng `pccc_sheet`
+
+Bìa của hồ sơ là **Bảng Danh mục bản vẽ** — một bảng liệt kê toàn bộ sheet của bộ hồ sơ, tách bạch với mặt bằng: banner tiêu đề + dòng thông tin (subtitle | địa chỉ | mã dự án) + từng băng theo hạng mục + từng dòng bản vẽ + hàng tổng cộng. Cột: `STT | NỘI DUNG DANH MỤC BẢN VẼ | SỐ LƯỢNG | KHỔ BẢN VẼ | MÃ BẢN VẼ | GHI CHÚ`. Hàng tổng cộng = **tổng số bản vẽ** (Σ `qty` của các dòng) — phải khớp số sheet thực tế.
+
+Dùng tool MCP **`pccc_sheet`** (preview → apply) thay vì vẽ tay: tool compile deterministic (geometry mm, cùng input → cùng output), fail-closed với dữ liệu sai (thiếu section/code/description, qty < 1, duplicate code trong cùng section → plan FAIL, apply từ chối), yêu cầu unit vật lý của bản vẽ (thiếu → blocked), và không ghi gì trong preview. Đầu vào: `projectName` (bắt buộc), `subtitle`/`address`/`projectCode` (tùy chọn), `sheets` (mảng `{ section, code, description, qty, size?, note? }`), `origin` (góc trái dưới, mặc định [0,0]).
+
+**Hạn chế trung thực**: bảng vẽ ở model space (không tạo layout/sheet space — bridge không hỗ trợ); chữ **căn trái** tại lề trái ô (text DTO của plugin không có alignment); nền banner/bảng không tô màu (chỉ viền + chữ — hatch fill không được mô hình hóa); khổ A3 thật chỉ xuất hiện ở khổ in ấn, không phải ở model space.
+
 ---
 
 ## 2. QUY CHUẨN LAYER & MÀU SẮC (CAD LAYERS SPECIFICATION)

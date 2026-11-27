@@ -74,6 +74,7 @@ Agent phải đọc và nhận diện:
 3. Tuyệt đối chống đè chữ: Text ghi chú, cao độ, kích thước không được đè lên nhau; kiểm tra bằng `drawing.check` (overlap + outside-bounds) trước khi hoàn thành.
 4. Xuất **Hai bảng**: (a) Bảng ký hiệu & ghi chú (6 cột: STT 1000 / KÝ HIỆU 1800 / TÊN 8000 / ĐVT 1200 / SỐ LƯỢNG 1500 / GHI CHÚ 3500 mm; hàng 600–700 mm; chữ 250 mm) đặt ở góc phải mỗi tờ — không chèn mặt bằng; (b) Bảng thống kê vật liệu theo tầng (riêng 1 tờ A3): banner tiêu đề `BẢNG THỐNG KÊ VẬT LIỆU - TÒA NHÀ <TÊN DỰ ÁN>`, các mục lớn (I — HỆ THỐNG BÁO CHÁY / II — CHIẾU SÁNG SỰ CỐ & THOÁT NẠN / III — HỆ THỐNG CHỮA CHÁY) với băng xanh dương, cột `STT | Danh mục | ĐVT | Hầm | T1…T7 | Tum | Tổng cộng`, Tổng cộng = tổng cột tầng của mỗi dòng (xem `pccc-bachkhoa-cad-standards` §4.2).
 5. Gán Khung tên A3 chuẩn với mã bản vẽ chính xác (`BC-01`, `CC-01`, `CS-01`, `EX-01`…) và ghi rõ tên dự án + hạng mục + tầng + mã bản vẽ + tỷ lệ.
+6. **Bảng Danh mục bản vẽ (index)** — dùng tool MCP `pccc_sheet` (preview → apply) để vẽ tờ bìa liệt kê toàn bộ sheet của bộ hồ sơ: banner + dòng thông tin + từng băng hạng mục + từng dòng bản vẽ (STT | NỘI DUNG | SỐ LƯỢNG | KHỔ | MÃ | GHI CHÚ) + hàng tổng cộng = Σ số bản vẽ. Không vẽ tay — tool fail-closed với dữ liệu sai và không vẽ trong preview. Xem `pccc-bachkhoa-cad-standards` §1.1.
 
 ---
 
@@ -86,3 +87,4 @@ Agent phải đọc và nhận diện:
 5. [ ] **Đúng lớp & Block**: mọi thiết bị dùng Block thư viện đúng (không gõ chữ tự vẽ); đường dây đi trực giao bám dầm, EOLR ở cuối loop.
 6. [ ] **Chưa đè chữ**: đã kiểm tra `drawing.check` cho toàn bản vẽ — 0 overlap/out-of-bounds mới báo "xong".
 7. [ ] **Ghi BOQ & ghi chú**: bảng vật tư + bảng ký hiệu đã xuất trong cùng tờ bản vẽ cuối cùng của hạng mục.
+8. [ ] **Bảng Danh mục bản vẽ**: tờ bìa liệt kê toàn bộ sheet của bộ hồ sơ (vẽ bằng `pccc_sheet`): banner + dòng thông tin + các băng hạng mục + từng dòng bản vẽ + hàng tổng cộng = tổng số bản vẽ (khớp số sheet thực tế).

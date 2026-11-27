@@ -65,6 +65,7 @@ async function main(): Promise<void> {
     'operations',
     'pccc_fire_alarm_overlay',
     'pccc_overlay',
+    'pccc_sheet',
     'style',
     'system',
     'view'
@@ -96,7 +97,8 @@ async function main(): Promise<void> {
     'erase',
     'copy_to',
     'transform',
-    'update'
+    'update',
+    'trace_boundary'
   ])
   console.log('tools/list schemas -> portable (flat root, anyOf/enum only)')
 
@@ -143,6 +145,7 @@ async function main(): Promise<void> {
       'cleanup'
     ],
     construct: ['walls', 'grid', 'room', 'dimensions'],
+    pccc_sheet: ['preview', 'apply', 'status'],
     style: [
       'linetypes.list',
       'linetypes.load',

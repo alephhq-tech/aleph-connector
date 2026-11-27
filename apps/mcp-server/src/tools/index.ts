@@ -16,6 +16,7 @@ import { registerCadStateTools } from './cadState.js'
 import { registerEditTools } from './edit.js'
 import { registerPcccOverlayTools } from './pcccOverlay.js'
 import { registerPcccFireAlarmTools } from './pcccFireAlarm.js'
+import { registerPcccSheetTools } from './pcccSheet.js'
 import { createCadStateSource } from './drawing.js'
 import { createRegionCache } from './pcccRegion.js'
 import { buildSnapshot } from '../local/snapshotBuilder.js'
@@ -67,4 +68,5 @@ export function registerAllTools(
   registerEditTools(server, bridge)
   registerPcccOverlayTools(server, bridge, cadState, regionCache)
   registerPcccFireAlarmTools(server, bridge, cadState, regionCache)
+  registerPcccSheetTools(server, bridge)
 }
