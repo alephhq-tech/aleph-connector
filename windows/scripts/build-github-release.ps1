@@ -49,13 +49,16 @@ try {
     Copy-Item -LiteralPath $nsis[0].FullName -Destination (Join-Path $output 'AlephConnector-setup.exe')
     Copy-Item -LiteralPath $msi[0].FullName -Destination (Join-Path $output 'AlephConnector.msi')
     $zipPath = Join-Path $output 'connector-update.zip'
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $zip = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
+    # PowerShell 5.1 cannot resolve ZipArchiveMode/ZipFile from an assembly loaded via
+    # -AssemblyName, so load the DLLs directly from the framework.
+    Add-Type -Path "C:\Windows\Microsoft.NET\Framework\v4.0.30319\System.IO.Compression.dll" -ErrorAction Stop
+    Add-Type -Path "C:\Windows\Microsoft.NET\Framework\v4.0.30319\System.IO.Compression.FileSystem.dll" -ErrorAction Stop
+    $zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
         $marker = $zip.CreateEntry('version.txt')
-        $writer = New-Object IO.StreamWriter($marker.Open(), (New-Object Text.UTF8Encoding $false))
+        $writer = New-Object System.IO.StreamWriter($marker.Open(), (New-Object System.Text.UTF8Encoding($false)))
         try { $writer.Write($Version) } finally { $writer.Dispose() }
-        [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $nsis[0].FullName, 'installer.exe')
+        [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $nsis[0].FullName, 'installer.exe')
     } finally { $zip.Dispose() }
     if ((Get-Item -LiteralPath $zipPath).Length -gt 1GB -or $nsis[0].Length -gt 1GB) {
         throw 'Release exceeds the desktop updater size limit (1 GiB).'
