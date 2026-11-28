@@ -69,8 +69,11 @@ try {
         [IO.File]::WriteAllText($privatePath, $privateMaterial, (New-Object Text.UTF8Encoding $false))
         & dotnet run --project (Join-Path $windowsRoot 'updater/Cli') -c Release -- pubkey $privatePath $derivedPath
         if ($LASTEXITCODE -ne 0) { throw 'Cannot derive release public key.' }
-        $expected = (Get-Content (Join-Path $windowsRoot 'updater/prodkeys/public.pem') -Raw).Trim()
-        $derived = (Get-Content $derivedPath -Raw).Trim()
+        # Normalize line endings before comparing: the pinned public.pem is stored with
+        # CRLF endings while the derived PEM is written by .NET with mixed LF/CRLF.
+        # The DER byte-hash check below is the authoritative proof; this is only a sanity gate.
+        $expected = ((Get-Content (Join-Path $windowsRoot 'updater/prodkeys/public.pem') -Raw) -replace "`r`n", "`n").Trim()
+        $derived = ((Get-Content $derivedPath -Raw) -replace "`r`n", "`n").Trim()
         if ($expected -ne $derived) { throw 'Release signing key does not match the pinned public key.' }
         $pinned = Join-Path $tauri 'src/update-public-key.der'
         $derivedRsa = Join-Path $output 'derived-public-rsa.der'
