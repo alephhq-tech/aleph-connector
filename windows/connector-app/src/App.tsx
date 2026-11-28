@@ -43,6 +43,11 @@ interface IntegrationStatus {
   pluginPath: string;
 }
 
+interface BridgeLaunchStatus {
+  status: "not-installed" | "already-running" | "started" | "failed";
+  detail: string;
+}
+
 interface UpdateCheck {
   updateAvailable: boolean;
   channelAvailable: boolean;
@@ -69,6 +74,7 @@ export default function App() {
   const [confirmUpdate, setConfirmUpdate] = useState(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startupRequested = useRef(false);
+  const postLaunchRan = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -160,7 +166,12 @@ export default function App() {
     if (startupRequested.current) return;
     startupRequested.current = true;
     void invoke<RuntimeStatus>("start_runtime", { port: null })
-      .then(setRuntime)
+      .then((st) => {
+        setRuntime(st);
+        if (postLaunchRan.current) return;
+        postLaunchRan.current = true;
+        void runPostLaunchEnsure(st.deviceWssUrl);
+      })
       .catch((e) => {
         const message = String(e);
         setError(message);
@@ -168,11 +179,36 @@ export default function App() {
       });
   }, [showNotice]);
 
-  async function onInstallAutocad() {
+  // On every launch: keep the Bridge alive. If the integration is missing, install it
+  // automatically — opening Aleph Connector is enough to have the bridge + plugin installed
+  // and running (the user asked for exactly this on first run).
+  async function runPostLaunchEnsure(deviceWssUrl: string) {
+    try {
+      const st = await refreshIntegration();
+      if (!st) return;
+      if (st.installed) {
+        const r = await invoke<BridgeLaunchStatus>("ensure_bridge_running");
+        if (r.status === "started" || r.status === "already-running") {
+          appendLog(`Bridge: ${r.detail}`);
+          setStatus(r.status === "already-running" ? "Bridge đang chạy." : "Bridge đã khởi động.");
+        } else if (r.status === "failed") {
+          showNotice("err", "Bridge không khởi động được", r.detail);
+        }
+        return;
+      }
+      // First launch: runtime is up (credential written) — install the bridge + plugin.
+      await onInstallAutocad(deviceWssUrl);
+    } catch (e) {
+      const msg = String(e);
+      setError(msg);
+    }
+  }
+
+  async function onInstallAutocad(deviceWssUrlOverride?: string) {
     beginBusy("install");
     showNotice("info", "Đang cài Bridge + plugin…", "Trỏ Bridge đến runtime cục bộ.");
     try {
-      const deviceWssUrl = runtime?.deviceWssUrl ?? "ws://127.0.0.1:8080/device";
+      const deviceWssUrl = deviceWssUrlOverride ?? runtime?.deviceWssUrl ?? "ws://127.0.0.1:8080/device";
       // The runtime owns identity.json; install.ps1 reads the credential from disk.
       const [ok, out] = await invoke<[boolean, string]>("install_autocad", {
         deviceGatewayUrl: deviceWssUrl,

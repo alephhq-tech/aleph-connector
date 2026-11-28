@@ -1,5 +1,6 @@
 mod agent_pack;
 mod agents;
+mod bridge;
 mod identity;
 mod install;
 mod mcp_config;
@@ -115,6 +116,15 @@ async fn start_runtime(
     start_runtime_task(resource_dir, port).await
 }
 
+/// Ensure the installed Bridge is running (called once per launch by the frontend).
+/// Never fails hard — returns a BridgeLaunchStatus the UI can show.
+#[tauri::command]
+async fn ensure_bridge_running() -> Result<bridge::BridgeLaunchStatus, String> {
+    tauri::async_runtime::spawn_blocking(bridge::ensure_bridge_running)
+        .await
+        .map_err(|e| format!("bridge start task join failed: {e}"))
+}
+
 #[tauri::command]
 async fn stop_runtime() -> Result<runtime::RuntimeStatus, String> {
     tauri::async_runtime::spawn_blocking(runtime::stop)
@@ -187,6 +197,7 @@ pub fn run() {
             stdio_exe,
             start_runtime,
             stop_runtime,
+            ensure_bridge_running,
             runtime_status,
             default_urls
         ])
